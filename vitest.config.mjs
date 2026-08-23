@@ -9,8 +9,9 @@ export default defineConfig({
     },
   },
   test: {
-    // The calculation engine is pure JavaScript — no DOM needed.
+    // The calculation engine is pure JavaScript — no DOM needed. Component
+    // tests opt into jsdom with a `@vitest-environment` docblock.
     environment: "node",
-    include: ["tests/**/*.test.js"],
+    include: ["tests/**/*.test.{js,jsx}"],
   },
 });

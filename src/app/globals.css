@@ -13,16 +13,16 @@
 
   --wagez-ink: #16161d;
   --wagez-muted: #717171;
-  --wagez-money: #00ad07;
+  /* Legacy earnings green (#00ad07) deepened to stay readable on the gradient. */
+  --wagez-money: #00700a;
+  --wagez-alert: #b3261e;
   --wagez-action: #736bfb;
   --wagez-panel: rgba(248, 248, 255, 0.7);
 
-  --wagez-gradient: linear-gradient(
-    45deg,
-    var(--wagez-bg-start) 0%,
-    var(--wagez-bg-mid) 50%,
-    var(--wagez-bg-end) 100%
-  );
+  --wagez-gradient: linear-gradient(45deg,
+      var(--wagez-bg-start) 0%,
+      var(--wagez-bg-mid) 50%,
+      var(--wagez-bg-end) 100%);
 }
 
 @theme inline {
@@ -35,7 +35,9 @@
   --font-sans: var(--font-wagez-sans), ui-sans-serif, system-ui, sans-serif;
 
   /* Giant Wagez values: readable on a phone, capped on a desktop. */
-  --text-display: clamp(3rem, 10vw, 7rem);
+  --text-display: clamp(2.5rem, 11vw, 4.5rem);
+  --text-result: clamp(2rem, 9vw, 3rem);
+  --text-value: clamp(1.875rem, 8vw, 2.75rem);
 }
 
 /*
@@ -63,7 +65,126 @@ body {
   padding-left: max(1.5rem, env(safe-area-inset-left));
 }
 
+/*
+  Reusable Wagez surfaces and controls. Layout and spacing stay in Tailwind
+  utilities; these are the patterns repeated across the app.
+*/
+
+/* Small caption above a giant value: "Clocked-in:", "You worked:". */
+.wagez-caption {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--wagez-ink);
+}
+
+/* The translucent editor panel. The gradient stays visible through it. */
+.wagez-panel {
+  background-color: var(--wagez-panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 1.5rem;
+}
+
+.wagez-field-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--wagez-ink);
+}
+
+/* An input and its adornments share one bordered, focusable surface. */
+.wagez-field {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 3.125rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(22, 22, 29, 0.15);
+  border-radius: 0.9rem;
+  background-color: rgba(255, 255, 255, 0.85);
+  color: var(--wagez-ink);
+}
+
+.wagez-field:focus-within {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
+/* The control itself fills the field, so the whole thing is a touch target. */
+.wagez-field input {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: 2.75rem;
+  min-width: 0;
+  border: 0;
+  background-color: transparent;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: inherit;
+}
+
+.wagez-field input:focus {
+  outline: none;
+}
+
+.wagez-alert {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--wagez-alert);
+}
+
+.wagez-do-math {
+  width: 100%;
+  min-height: 3.5rem;
+  border-radius: 1rem;
+  background-color: var(--wagez-action);
+  color: #ffffff;
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  transition:
+    background-color 140ms ease,
+    transform 140ms ease;
+}
+
+.wagez-do-math:hover {
+  background-color: var(--wagez-ink);
+}
+
+.wagez-do-math:active {
+  background-color: var(--wagez-ink);
+  transform: scale(0.985);
+}
+
+.wagez-do-math:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 3px;
+}
+
+/* Secondary actions: full touch target, no visual competition. */
+.wagez-quiet-button {
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  color: var(--wagez-ink);
+  transition: background-color 140ms ease;
+}
+
+.wagez-quiet-button:hover {
+  background-color: rgba(22, 22, 29, 0.08);
+}
+
+.wagez-quiet-button:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

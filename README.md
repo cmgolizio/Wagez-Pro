@@ -34,13 +34,20 @@ Open <http://localhost:3000>.
 | `npm run build` | Production build             |
 | `npm start`     | Serve the production build   |
 | `npm run lint`  | Lint the project             |
+| `npm test`      | Run the test suite           |
 
 ## Project layout
 
 ```
-src/app/       App Router routes, layout, global styles and design tokens
-docs/          build-plan.md — the authoritative specification
+src/app/         App Router routes, layout, global styles and design tokens
+src/components/  React components, grouped by view
+src/lib/         Pure logic: calculations, formatters, dates — no React
+tests/           Vitest unit and component tests
+docs/            build-plan.md — the authoritative specification
 ```
+
+Calculation, formatting and presentation stay in separate layers: nothing in
+`src/lib/` imports React, and components never re-implement the math.
 
 ## Contributing
 
