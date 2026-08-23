@@ -1,26 +1,75 @@
 @import "tailwindcss";
 
+/*
+  Wagez design tokens.
+
+  The background gradient is part of the Wagez identity. Its stops, order and
+  angle are fixed — do not change them.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --wagez-bg-start: #00ff87;
+  --wagez-bg-mid: #00ffd0;
+  --wagez-bg-end: #60efff;
+
+  --wagez-ink: #16161d;
+  --wagez-muted: #717171;
+  --wagez-money: #00ad07;
+  --wagez-action: #736bfb;
+  --wagez-panel: rgba(248, 248, 255, 0.7);
+
+  --wagez-gradient: linear-gradient(
+    45deg,
+    var(--wagez-bg-start) 0%,
+    var(--wagez-bg-mid) 50%,
+    var(--wagez-bg-end) 100%
+  );
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--wagez-ink);
+  --color-muted: var(--wagez-muted);
+  --color-money: var(--wagez-money);
+  --color-action: var(--wagez-action);
+  --color-panel: var(--wagez-panel);
+
+  --font-sans: var(--font-wagez-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* Giant Wagez values: readable on a phone, capped on a desktop. */
+  --text-display: clamp(3rem, 10vw, 7rem);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/*
+  The gradient lives on <body> so it always covers the viewport, including
+  dynamic mobile browser chrome. <html> carries a flat fallback so overscroll
+  never exposes white.
+*/
+html {
+  background-color: var(--wagez-bg-mid);
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+  background-image: var(--wagez-gradient);
+  color: var(--wagez-ink);
+  overscroll-behavior-y: none;
+}
+
+/* Keep content clear of notches, rounded corners and the home indicator. */
+.wagez-safe-area {
+  padding-top: max(1.5rem, env(safe-area-inset-top));
+  padding-right: max(1.5rem, env(safe-area-inset-right));
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  padding-left: max(1.5rem, env(safe-area-inset-left));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

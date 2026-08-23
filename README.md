@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Wagez Pro
 
-## Getting Started
+A small, fast wage and shift calculator.
 
-First, run the development server:
+> I worked from this time to this time, at this rate.
+> How long did I work, and how much did I make?
+
+Wagez runs entirely in the browser. There is no account, no backend, and no
+network requirement for the math — saved data lives in local storage on the
+device.
+
+## Stack
+
+- Next.js (App Router) with Turbopack
+- React
+- Plain JavaScript — **no TypeScript**
+- Tailwind CSS v4
+- ESLint
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command         | What it does                 |
+| --------------- | ---------------------------- |
+| `npm run dev`   | Start the development server |
+| `npm run build` | Production build             |
+| `npm start`     | Serve the production build   |
+| `npm run lint`  | Lint the project             |
 
-## Learn More
+## Project layout
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/app/       App Router routes, layout, global styles and design tokens
+docs/          build-plan.md — the authoritative specification
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`docs/build-plan.md` is the source of truth for scope, visual identity and
+calculation rules. Read it before changing anything.
