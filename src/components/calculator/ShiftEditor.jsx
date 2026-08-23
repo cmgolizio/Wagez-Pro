@@ -37,12 +37,12 @@ export default function ShiftEditor({
 
   return (
     <form
-      className='wagez-panel flex shrink-0 flex-col gap-4 p-4 sm:p-5'
+      className='wagez-panel flex shrink-0 flex-col gap-3 p-4 sm:p-5'
       onSubmit={handleSubmit}
       noValidate
     >
       <h2 className='sr-only'>Shift</h2>
-      <div className='grid grid-cols-2 gap-3'>
+      <div className='grid gap-3 md:grid-cols-2'>
         <TimeField
           ref={startRef}
           id='start-time'
@@ -68,16 +68,18 @@ export default function ShiftEditor({
         error={errors.hourlyRate}
         onChange={(value) => onChange("hourlyRate", value)}
       />
-      <button type='submit' className='wagez-do-math'>
-        Do Math.
-      </button>
-      <button
-        type='button'
-        className='wagez-quiet-button self-center'
-        onClick={onReset}
-      >
-        Reset
-      </button>
+      <div className='flex items-center gap-2'>
+        <button type='submit' className='wagez-do-math'>
+          Do Math.
+        </button>
+        <button
+          type='button'
+          className='wagez-quiet-button shrink-0'
+          onClick={onReset}
+        >
+          Reset
+        </button>
+      </div>
     </form>
   );
 }

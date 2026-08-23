@@ -12,8 +12,29 @@ function currentValue(label) {
   return screen.getByText(label).nextElementSibling.textContent;
 }
 
-function setTime(label, value) {
-  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+/**
+ * Enter a canonical `"HH:MM"` through the segmented control, the way the
+ * control is actually operated: hour, minute, then the half of the day.
+ */
+function setTime(label, time) {
+  const [hour24, minute] = time.split(":").map(Number);
+  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
+
+  const hourInput = screen.getByLabelText(`${label} hour`);
+  hourInput.focus();
+  fireEvent.change(hourInput, { target: { value: String(hour) } });
+
+  const minuteInput = screen.getByLabelText(`${label} minutes`);
+  minuteInput.focus();
+  fireEvent.change(minuteInput, {
+    target: { value: String(minute).padStart(2, "0") },
+  });
+
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: `${label} ${hour24 < 12 ? "AM" : "PM"}`,
+    }),
+  );
 }
 
 function setRate(value) {
@@ -52,6 +73,35 @@ describe("calculating a single shift", () => {
     expect(screen.getByText("7 hours.")).not.toBeNull();
     expect(screen.getByText("and made:")).not.toBeNull();
     expect(screen.getByText("$140.00")).not.toBeNull();
+  });
+
+  it("takes a whole shift from the quick controls alone", () => {
+    render(<CalculatorView />);
+
+    fireEvent.change(screen.getByLabelText("Clocked-in hour"), {
+      target: { value: "9" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clocked-in 0 minutes" }),
+    );
+    fireEvent.change(screen.getByLabelText("Clocked-out hour"), {
+      target: { value: "5" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clocked-out 30 minutes" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Clocked-out PM" }));
+
+    // The top display followed every press, without a calculation.
+    expect(currentValue("Clocked-in:")).toBe("9:00 AM");
+    expect(currentValue("Clocked-out:")).toBe("5:30 PM");
+    expect(screen.queryByText("You worked:")).toBeNull();
+
+    setRate("20");
+    doMath();
+
+    expect(screen.getByText("8 hours + 30 min.")).not.toBeNull();
+    expect(screen.getByText("$170.00")).not.toBeNull();
   });
 
   it("calculates a partial hour at a decimal rate", () => {
@@ -109,7 +159,9 @@ describe("invalid input", () => {
       "What time did you clock in?",
     );
     expect(screen.queryByText("You worked:")).toBeNull();
-    expect(screen.getByLabelText("Clocked-in")).toBe(document.activeElement);
+    expect(screen.getByLabelText("Clocked-in hour")).toBe(
+      document.activeElement,
+    );
   });
 
   it("refuses to read an identical start and end as a 24-hour shift", () => {
@@ -151,7 +203,8 @@ describe("reset", () => {
 
     expect(currentValue("Clocked-in:")).toContain("Not set");
     expect(currentValue("Pay rate:")).toContain("Not set");
-    expect(screen.getByLabelText("Clocked-in").value).toBe("");
+    expect(screen.getByLabelText("Clocked-in hour").value).toBe("");
+    expect(screen.getByLabelText("Clocked-in minutes").value).toBe("");
     expect(screen.queryByText("You worked:")).toBeNull();
     expect(screen.queryByText("$160.00")).toBeNull();
   });

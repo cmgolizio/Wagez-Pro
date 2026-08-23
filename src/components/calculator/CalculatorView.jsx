@@ -48,7 +48,7 @@ export default function CalculatorView() {
   const failed = calculation !== null && !calculation.ok;
 
   return (
-    <main className='wagez-safe-area mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-4'>
+    <main className='wagez-safe-area mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-4'>
       <h1 className='shrink-0 text-lg font-extrabold tracking-tight text-ink'>
         Wagez
       </h1>

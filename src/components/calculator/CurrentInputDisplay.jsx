@@ -33,12 +33,12 @@ export default function CurrentInputDisplay({ draft }) {
   return (
     <section className='flex flex-1 flex-col justify-center'>
       <h2 className='sr-only'>Current shift</h2>
-      {/* Wide enough, and the two times sit side by side like their inputs. */}
-      <dl className='grid gap-3 sm:grid-cols-2'>
+      {/* The two times sit side by side, like the controls that set them. */}
+      <dl className='grid grid-cols-2 gap-3'>
         <CurrentValue label='Clocked-in:' value={formatTime(draft.startTime)} />
         <CurrentValue label='Clocked-out:' value={formatTime(draft.endTime)} />
         <CurrentValue
-          className='sm:col-span-2'
+          className='col-span-2'
           label='Pay rate:'
           value={rateCents === null ? null : formatHourlyRate(rateCents)}
         />

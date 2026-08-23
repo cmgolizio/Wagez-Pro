@@ -41,7 +41,7 @@ Open <http://localhost:3000>.
 ```
 src/app/         App Router routes, layout, global styles and design tokens
 src/components/  React components, grouped by view
-src/lib/         Pure logic: calculations, formatters, dates — no React
+src/lib/         Pure logic: calculations, formatters, dates, time entry — no React
 tests/           Vitest unit and component tests
 docs/            build-plan.md — the authoritative specification
 ```

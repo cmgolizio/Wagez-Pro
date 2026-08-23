@@ -130,6 +130,112 @@ body {
   outline: none;
 }
 
+/*
+  The segmented time control: hour, minute and AM/PM on one field row. Every
+  control inside it is its own focus target, so the field does not draw a ring
+  around the whole group as well.
+*/
+.wagez-time {
+  gap: 0.2rem;
+  padding-inline: 0.4rem;
+}
+
+.wagez-field.wagez-time:focus-within {
+  outline: none;
+}
+
+/* 1.5rem keeps the segments well above the size that makes iOS zoom on focus. */
+.wagez-field input.wagez-time-segment {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  padding: 0;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.wagez-field input.wagez-time-segment::placeholder {
+  color: rgba(22, 22, 29, 0.45);
+  font-weight: 700;
+}
+
+.wagez-field input.wagez-time-segment:focus {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 1px;
+  border-radius: 0.5rem;
+}
+
+.wagez-time-colon {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+  color: rgba(22, 22, 29, 0.45);
+}
+
+.wagez-meridiem {
+  display: flex;
+  gap: 0.25rem;
+  margin-inline-start: 0.3rem;
+}
+
+.wagez-meridiem button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: 0.7rem;
+  background-color: rgba(22, 22, 29, 0.07);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--wagez-ink);
+  transition: background-color 140ms ease;
+}
+
+.wagez-meridiem button:hover {
+  background-color: rgba(22, 22, 29, 0.14);
+}
+
+.wagez-meridiem button[aria-pressed="true"] {
+  background-color: var(--wagez-ink);
+  color: #ffffff;
+}
+
+.wagez-meridiem button:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
+/* Quick minutes and Now: one tap, still a full touch target. */
+.wagez-chip {
+  min-height: 2.75rem;
+  padding-inline: 0.35rem;
+  border: 1px solid rgba(22, 22, 29, 0.12);
+  border-radius: 0.7rem;
+  background-color: rgba(255, 255, 255, 0.75);
+  font-size: 0.875rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--wagez-ink);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.wagez-chip:hover {
+  background-color: rgba(255, 255, 255, 1);
+}
+
+.wagez-chip[aria-pressed="true"] {
+  background-color: var(--wagez-ink);
+  border-color: var(--wagez-ink);
+  color: #ffffff;
+}
+
+.wagez-chip:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
 .wagez-alert {
   font-size: 0.875rem;
   font-weight: 700;

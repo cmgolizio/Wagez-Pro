@@ -9,7 +9,7 @@ export default function RateField({ id, label, value, error, onChange, ref }) {
   const errorId = `${id}-error`;
 
   return (
-    <div className='flex flex-col gap-1.5'>
+    <div className='flex flex-col gap-1'>
       <label className='wagez-field-label' htmlFor={id}>
         {label}
         <span className='sr-only'> in dollars per hour</span>
