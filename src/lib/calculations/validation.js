@@ -12,11 +12,11 @@ import { calculateElapsedMinutes, parseMinutes, parseTime } from "./time";
 import { parseRateCents } from "./wages";
 
 export const MESSAGES = {
-  startMissing: "What time did you clock in?",
-  startInvalid: "That clock-in time doesn't look right.",
-  endMissing: "What time did you clock out?",
-  endInvalid: "That clock-out time doesn't look right.",
-  sameTime: "Start and end time can't be the same.",
+  startMissing: "What is the start time?",
+  startInvalid: "That start time doesn't look right.",
+  endMissing: "What is the stop time?",
+  endInvalid: "That stop time doesn't look right.",
+  sameTime: "Start and stop time can't be the same.",
   rateNegative: "A pay rate can't be negative.",
   rateInvalid: "That pay rate doesn't look right.",
   breakNegative: "A break can't be negative.",

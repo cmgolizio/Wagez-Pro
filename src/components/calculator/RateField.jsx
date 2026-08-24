@@ -7,12 +7,14 @@
  */
 export default function RateField({ id, label, value, error, onChange, ref }) {
   const errorId = `${id}-error`;
+  // Announced without the trailing colon, and with the unit the "$" and
+  // "/hour" adornments carry visually.
+  const name = `${label.replace(/:$/, "")} in dollars per hour`;
 
   return (
     <div className='flex flex-col gap-1'>
       <label className='wagez-field-label' htmlFor={id}>
         {label}
-        <span className='sr-only'> in dollars per hour</span>
       </label>
       <div className='wagez-field'>
         <span aria-hidden='true' className='text-xl font-semibold'>
@@ -27,6 +29,7 @@ export default function RateField({ id, label, value, error, onChange, ref }) {
           placeholder='0.00'
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          aria-label={name}
           aria-invalid={error === undefined ? undefined : "true"}
           aria-describedby={error === undefined ? undefined : errorId}
         />

@@ -190,7 +190,7 @@ Example:
     Clocked-out:
     11:47 PM
 
-    Pay rate:
+    Pay Rate:
     $22/hour
 
 The major values should be:
@@ -2696,7 +2696,7 @@ Example:
     Clocked-out:
     11:47 PM
 
-    Pay rate:
+    Pay Rate:
     $22/hour
 
 The major values should be:
@@ -5590,7 +5590,7 @@ Good:
 
     Clocked-in:
     Clocked-out:
-    Pay rate:
+    Pay Rate:
     You worked:
     and made:
     Do Math.
@@ -6256,7 +6256,7 @@ Good:
 
     Clocked-in:
     Clocked-out:
-    Pay rate:
+    Pay Rate:
     You worked:
     and made:
     Do Math.

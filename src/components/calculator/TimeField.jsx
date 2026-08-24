@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AM, PM, createTime } from "@/lib/calculations/time";
 import {
@@ -43,8 +43,24 @@ function stepFromKey(key) {
  * The canonical `"HH:MM"` time above is the source of truth. The segments held
  * here are the half-typed version of it, which is why they survive an hour
  * without a minute yet — that publishes an empty time, not a wrong one.
+ *
+ * `label` is what the field is called on screen, punctuation and all. Screen
+ * readers hear it without the trailing colon, so a segment announces itself as
+ * "Start hour" rather than "Start: hour".
+ *
+ * `autoFocus` puts the caret in the hour on arrival, so the first thing a user
+ * types lands where a shift starts without them having to aim at anything.
  */
-export default function TimeField({ id, label, value, error, onChange, ref }) {
+export default function TimeField({
+  id,
+  label,
+  value,
+  error,
+  onChange,
+  autoFocus = false,
+  ref,
+}) {
+  const name = label.replace(/:$/, "");
   const [parts, setParts] = useState(() => toParts(value));
   const [published, setPublished] = useState(value);
   const hourRef = useRef(null);
@@ -57,6 +73,12 @@ export default function TimeField({ id, label, value, error, onChange, ref }) {
     setPublished(value);
     setParts(toParts(value));
   }
+
+  useEffect(() => {
+    if (autoFocus) selectSegment(hourRef.current);
+    // Arrival only: re-focusing on later renders would fight the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function attachHour(node) {
     hourRef.current = node;
@@ -191,7 +213,7 @@ export default function TimeField({ id, label, value, error, onChange, ref }) {
           {...segmentProps}
           ref={attachHour}
           id={id}
-          aria-label={`${label} hour`}
+          aria-label={`${name} hour`}
           value={parts.hour}
           onChange={handleHourChange}
           onKeyDown={handleHourKeyDown}
@@ -203,7 +225,7 @@ export default function TimeField({ id, label, value, error, onChange, ref }) {
           {...segmentProps}
           ref={minuteRef}
           id={`${id}-minutes`}
-          aria-label={`${label} minutes`}
+          aria-label={`${name} minutes`}
           value={parts.minute}
           onChange={handleMinuteChange}
           onKeyDown={handleMinuteKeyDown}
@@ -212,13 +234,13 @@ export default function TimeField({ id, label, value, error, onChange, ref }) {
           ref={meridiemRef}
           className='wagez-meridiem'
           role='group'
-          aria-label={`${label} AM or PM`}
+          aria-label={`${name} AM or PM`}
         >
           {[AM, PM].map((meridiem) => (
             <button
               key={meridiem}
               type='button'
-              aria-label={`${label} ${meridiem}`}
+              aria-label={`${name} ${meridiem}`}
               aria-pressed={parts.meridiem === meridiem}
               onClick={() => commit({ ...parts, meridiem })}
               onKeyDown={handleMeridiemKeyDown}
@@ -236,7 +258,7 @@ export default function TimeField({ id, label, value, error, onChange, ref }) {
             key={minute}
             type='button'
             className='wagez-chip'
-            aria-label={`${label} ${Number(minute)} minutes`}
+            aria-label={`${name} ${Number(minute)} minutes`}
             aria-pressed={parts.minute === minute}
             onClick={() => commit({ ...parts, minute })}
           >
@@ -246,7 +268,7 @@ export default function TimeField({ id, label, value, error, onChange, ref }) {
         <button
           type='button'
           className='wagez-chip'
-          aria-label={`Set ${label} to now`}
+          aria-label={`Set ${name} to now`}
           onClick={setNow}
         >
           Now

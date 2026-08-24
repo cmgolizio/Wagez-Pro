@@ -8,7 +8,9 @@ import TimeField from "@/components/calculator/TimeField";
 
 afterEach(cleanup);
 
-const LABEL = "Clocked-in";
+const LABEL = "Start:";
+/** What a screen reader hears — the visible label without its colon. */
+const NAME = "Stop";
 
 /** A stand-in for the draft above: the time lives outside the control. */
 function Harness({ initial = "", error }) {
@@ -31,8 +33,8 @@ function Harness({ initial = "", error }) {
   );
 }
 
-const hour = () => screen.getByLabelText(`${LABEL} hour`);
-const minute = () => screen.getByLabelText(`${LABEL} minutes`);
+const hour = () => screen.getByLabelText(`${NAME} hour`);
+const minute = () => screen.getByLabelText(`${NAME} minutes`);
 const published = () => screen.getByTestId("published").textContent;
 
 /** Type into a segment the way a person does: the first digit replaces it. */
@@ -50,7 +52,7 @@ function typeSegment(input, digits) {
 }
 
 function pressMeridiem(meridiem) {
-  fireEvent.click(screen.getByRole("button", { name: `${LABEL} ${meridiem}` }));
+  fireEvent.click(screen.getByRole("button", { name: `${NAME} ${meridiem}` }));
 }
 
 describe("entering a time", () => {
@@ -76,7 +78,7 @@ describe("entering a time", () => {
 
     typeSegment(minute(), "30");
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: `${LABEL} AM` }),
+      screen.getByRole("button", { name: `${NAME} AM` }),
     );
   });
 
@@ -99,7 +101,7 @@ describe("entering a time", () => {
     typeSegment(minute(), "45");
 
     expect(hour().value).toBe("4");
-    expect(screen.getByRole("button", { name: `${LABEL} PM` })).toHaveProperty(
+    expect(screen.getByRole("button", { name: `${NAME} PM` })).toHaveProperty(
       "ariaPressed",
       "true",
     );
@@ -162,9 +164,7 @@ describe("quick minutes", () => {
     render(<Harness />);
 
     typeSegment(hour(), "9");
-    fireEvent.click(
-      screen.getByRole("button", { name: `${LABEL} 30 minutes` }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: `${NAME} 30 minutes` }));
 
     expect(minute().value).toBe("30");
     expect(published()).toBe("09:30");
@@ -174,10 +174,10 @@ describe("quick minutes", () => {
     render(<Harness initial='17:45' />);
 
     expect(
-      screen.getByRole("button", { name: `${LABEL} 45 minutes` }),
+      screen.getByRole("button", { name: `${NAME} 45 minutes` }),
     ).toHaveProperty("ariaPressed", "true");
     expect(
-      screen.getByRole("button", { name: `${LABEL} 15 minutes` }),
+      screen.getByRole("button", { name: `${NAME} 15 minutes` }),
     ).toHaveProperty("ariaPressed", "false");
   });
 });
@@ -216,7 +216,7 @@ describe("keyboard", () => {
     fireEvent.keyDown(minute(), { key: "a" });
     expect(published()).toBe("09:00");
 
-    fireEvent.keyDown(screen.getByRole("button", { name: `${LABEL} AM` }), {
+    fireEvent.keyDown(screen.getByRole("button", { name: `${NAME} AM` }), {
       key: "ArrowUp",
     });
     expect(published()).toBe("21:00");
@@ -242,7 +242,7 @@ describe("Now", () => {
     try {
       render(<Harness />);
       fireEvent.click(
-        screen.getByRole("button", { name: `Set ${LABEL} to now` }),
+        screen.getByRole("button", { name: `Set ${NAME} to now` }),
       );
 
       expect(published()).toBe("16:15");
@@ -275,15 +275,15 @@ describe("accessibility", () => {
     expect(minute()).not.toBeNull();
     expect(screen.getByRole("group", { name: LABEL })).not.toBeNull();
     expect(
-      screen.getByRole("group", { name: `${LABEL} AM or PM` }),
+      screen.getByRole("group", { name: `${NAME} AM or PM` }),
     ).not.toBeNull();
   });
 
   it("points the segments at the error when there is one", () => {
-    render(<Harness error='What time did you clock in?' />);
+    render(<Harness error='What time did you start?' />);
 
     expect(screen.getByRole("alert").textContent).toBe(
-      "What time did you clock in?",
+      "What time did you start?",
     );
     expect(hour().getAttribute("aria-invalid")).toBe("true");
     expect(hour().getAttribute("aria-describedby")).toBe(

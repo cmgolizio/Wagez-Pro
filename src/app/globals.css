@@ -3,8 +3,9 @@
 /*
   Wagez design tokens.
 
-  The background gradient is part of the Wagez identity. Its stops, order and
-  angle are fixed — do not change them.
+  The background gradient is part of the Wagez identity. Its stops and order are
+  fixed — do not change them. The 315deg run lands the green in the bottom-right
+  corner and the blue in the top-left.
 */
 :root {
   --wagez-bg-start: #00ff87;
@@ -17,12 +18,40 @@
   --wagez-money: #00700a;
   --wagez-alert: #b3261e;
   --wagez-action: #736bfb;
-  --wagez-panel: rgba(248, 248, 255, 0.7);
 
-  --wagez-gradient: linear-gradient(45deg,
+  --wagez-gradient: linear-gradient(315deg,
       var(--wagez-bg-start) 0%,
       var(--wagez-bg-mid) 50%,
       var(--wagez-bg-end) 100%);
+
+  /*
+    Sizing is one number per region, and it is always a product:
+
+      --wagez-scale = emphasis × (how much has been entered) × fit
+
+    `--wagez-emphasis` is which region is the headline right now. `--wagez-fit`
+    is measured in JavaScript and shrinks everything together until the screen
+    holds it — Wagez never scrolls. Every size below multiplies by the result,
+    so a region grows and shrinks as one piece.
+  */
+  --wagez-scale: 1;
+  --wagez-emphasis: 1;
+  --wagez-entered-scale: 1;
+  --wagez-fit: 1;
+
+  /*
+    Corners are nearly square. The fillet is only large enough to read as
+    deliberate rather than as a hard 90-degree point.
+  */
+  --wagez-radius-panel: 7px;
+  --wagez-radius-field: 5px;
+  --wagez-radius-control: 4px;
+
+  /* Base type for the giant values, before any scale is applied. */
+  --wagez-text-label: clamp(0.8rem, 2.6vw, 1rem);
+  --wagez-text-value: clamp(1.625rem, 7vw, 2.5rem);
+  --wagez-text-duration: clamp(1.75rem, 7.5vw, 2.75rem);
+  --wagez-text-money: clamp(2.25rem, 10vw, 4rem);
 }
 
 @theme inline {
@@ -30,39 +59,127 @@
   --color-muted: var(--wagez-muted);
   --color-money: var(--wagez-money);
   --color-action: var(--wagez-action);
-  --color-panel: var(--wagez-panel);
 
   --font-sans: var(--font-wagez-sans), ui-sans-serif, system-ui, sans-serif;
-
-  /* Giant Wagez values: readable on a phone, capped on a desktop. */
-  --text-display: clamp(2.5rem, 11vw, 4.5rem);
-  --text-result: clamp(2rem, 9vw, 3rem);
-  --text-value: clamp(1.875rem, 8vw, 2.75rem);
 }
 
 /*
   The gradient lives on <body> so it always covers the viewport, including
   dynamic mobile browser chrome. <html> carries a flat fallback so overscroll
   never exposes white.
+
+  Nothing scrolls, anywhere: the calculator fits the screen it is on by
+  shrinking to it, so a scrollbar would only ever mean something had gone wrong.
 */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 html {
   background-color: var(--wagez-bg-mid);
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  min-height: 100dvh;
   background-image: var(--wagez-gradient);
   color: var(--wagez-ink);
-  overscroll-behavior-y: none;
+  overscroll-behavior: none;
 }
 
 /* Keep content clear of notches, rounded corners and the home indicator. */
 .wagez-safe-area {
-  padding-top: max(1.5rem, env(safe-area-inset-top));
-  padding-right: max(1.5rem, env(safe-area-inset-right));
-  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-  padding-left: max(1.5rem, env(safe-area-inset-left));
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+}
+
+/* The whole app, exactly one screen tall. */
+.wagez-shell {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.wagez-brand {
+  font-size: calc(1.125rem * var(--wagez-fit));
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--wagez-ink);
+}
+
+/*
+  The three regions, centred as a group on whatever is left of the screen. The
+  children keep their natural height so overflow is measurable — that is what
+  `useFitToViewport` reads to decide how far everything has to shrink.
+*/
+.wagez-stage {
+  gap: calc(1rem * var(--wagez-fit));
+  overflow: hidden;
+}
+
+.wagez-stage>* {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+/*
+  Emphasis. Before a calculation the editor is the screen; afterwards the money
+  is, and the inputs step back. Hovering the stepped-back half brings it part of
+  the way forward, and clicking it hands the screen back.
+*/
+.wagez-entered,
+.wagez-result {
+  --wagez-scale: calc(var(--wagez-emphasis) * var(--wagez-fit));
+}
+
+.wagez-panel {
+  --wagez-scale: calc(var(--wagez-emphasis) * var(--wagez-entered-scale) * var(--wagez-fit));
+}
+
+/* Editing: the inputs lead, and any standing result waits quietly below. */
+.wagez-result {
+  --wagez-emphasis: 0.6;
+}
+
+/* Calculated: the money is the headline and everything else gets out of its way. */
+[data-stage="result"] .wagez-entered {
+  --wagez-emphasis: 0.5;
+}
+
+[data-stage="result"] .wagez-panel {
+  --wagez-emphasis: 0.52;
+}
+
+[data-stage="result"] .wagez-result {
+  --wagez-emphasis: 1.3;
+}
+
+/* Hovering the shrunken inputs: part of the way back, at the money's expense. */
+[data-stage="result"][data-peek="true"] .wagez-entered {
+  --wagez-emphasis: 0.74;
+}
+
+[data-stage="result"][data-peek="true"] .wagez-panel {
+  --wagez-emphasis: 0.78;
+}
+
+[data-stage="result"][data-peek="true"] .wagez-result {
+  --wagez-emphasis: 0.92;
+}
+
+/* The editor grows into an empty screen and gives the room back as it fills. */
+.wagez-panel[data-entered="0"] {
+  --wagez-entered-scale: 1.22;
+}
+
+.wagez-panel[data-entered="1"] {
+  --wagez-entered-scale: 1.14;
+}
+
+.wagez-panel[data-entered="2"] {
+  --wagez-entered-scale: 1.07;
 }
 
 /*
@@ -70,25 +187,160 @@ body {
   utilities; these are the patterns repeated across the app.
 */
 
-/* Small caption above a giant value: "Clocked-in:", "You worked:". */
+/*
+  Small caption above a giant value: "Start:", "You worked:".
+
+  The floors on these three keep a stepped-back region legible. Shrinking is
+  meant to say "not the point right now", never "unreadable".
+*/
 .wagez-caption {
-  font-size: 1rem;
+  font-size: max(calc(0.625rem * var(--wagez-fit)),
+      calc(var(--wagez-text-label) * var(--wagez-scale)));
   font-weight: 700;
   letter-spacing: -0.01em;
+  line-height: 1.2;
   color: var(--wagez-ink);
 }
 
-/* The translucent editor panel. The gradient stays visible through it. */
+/* The giant values: what was entered, how long it was, what it came to. */
+.wagez-value,
+.wagez-duration,
+.wagez-money {
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.wagez-value {
+  font-size: max(calc(0.95rem * var(--wagez-fit)),
+      calc(var(--wagez-text-value) * var(--wagez-scale)));
+  color: var(--wagez-ink);
+}
+
+.wagez-duration {
+  font-size: max(calc(1.05rem * var(--wagez-fit)),
+      calc(var(--wagez-text-duration) * var(--wagez-scale)));
+  color: var(--wagez-ink);
+}
+
+.wagez-money {
+  font-size: calc(var(--wagez-text-money) * var(--wagez-scale));
+  color: var(--wagez-money);
+}
+
+.wagez-entered-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(0.6rem * var(--wagez-scale));
+}
+
+/* Stale money keeps its size but loses the green, which cannot survive dimming. */
+.wagez-money-muted {
+  color: var(--wagez-ink);
+}
+
+/* Stepped back and waiting to be clicked back into place. */
+.wagez-recallable {
+  cursor: pointer;
+}
+
+/*
+  No result yet: out of the layout, still in the document. Absolutely positioned
+  children are not flex items, so this costs neither height nor a stage gap.
+*/
+.wagez-result[data-empty="true"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/*
+  The editor panel: liquid glass.
+
+  What sells it is layering — a saturated blur of the gradient running behind
+  it, a specular sweep off the top-left corner, a pool of light gathering in the
+  lower right, and edges lit brightly along the top and dimly along the bottom
+  so the slab reads as having thickness. The fill is frosted rather than clear:
+  the gradient still runs through, but softened, the way thick glass softens
+  what is behind it.
+*/
 .wagez-panel {
-  background-color: var(--wagez-panel);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  border-radius: 1.5rem;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  /*
+    The slab itself shrinks, not merely the room it is given. On a wide screen
+    that is the 34rem term; on a narrow one the screen is already the limit, so
+    the second term takes a share of it instead — normalised against the largest
+    scale so an empty editor still gets the full width. `min-content` is the
+    floor: the box stops narrowing at the point its own controls would spill.
+  */
+  min-width: min-content;
+  max-width: min(calc(34rem * var(--wagez-scale)),
+      calc(100% * var(--wagez-scale) / 1.22));
+  margin-inline: auto;
+  padding: calc(1.15rem * var(--wagez-scale));
+  gap: calc(0.85rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-panel);
+  background-color: rgba(255, 255, 255, 0.42);
+  background-image:
+    linear-gradient(146deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.18) 28%,
+      rgba(255, 255, 255, 0) 52%),
+    radial-gradient(120% 95% at 88% 110%,
+      rgba(255, 255, 255, 0.36) 0%,
+      rgba(255, 255, 255, 0) 62%);
+  /*
+    Prefix first: the CSS minifier collapses the pair and keeps whichever comes
+    last, and it is the unprefixed property that Chromium and Firefox honour.
+  */
+  -webkit-backdrop-filter: blur(34px) saturate(180%);
+  backdrop-filter: blur(34px) saturate(180%);
+  box-shadow:
+    /* Contact shadow, then the lift. */
+    0 2px 6px rgba(2, 40, 30, 0.16),
+    0 28px 56px -22px rgba(2, 40, 30, 0.52),
+    /* Keeps the outline crisp against a bright ground. */
+    0 0 0 1px rgba(255, 255, 255, 0.5),
+    /* Thickness: lit along the top, falling away to the bottom. */
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 1px 0 0 rgba(255, 255, 255, 0.6),
+    inset -1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.32),
+    /* Content sits down inside the glass rather than on top of it. */
+    inset 0 3px 12px -7px rgba(2, 40, 30, 0.26);
+}
+
+/*
+  A second hairline just inside the edge. Two lines of light a pixel apart are
+  what read as a bevelled edge rather than a flat tint.
+*/
+.wagez-panel::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: calc(var(--wagez-radius-panel) - 1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+
+/*
+  Stepped back, the panel is a single target: a click anywhere on it brings the
+  editor back rather than working one of the shrunken controls by accident.
+  Keyboard users reach the controls by tabbing, which restores it on focus.
+*/
+[data-stage="result"] .wagez-panel>* {
+  pointer-events: none;
 }
 
 .wagez-field-label {
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--wagez-scale));
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -99,12 +351,15 @@ body {
 .wagez-field {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  min-height: 3.125rem;
-  padding: 0.25rem 0.6rem;
-  border: 1px solid rgba(22, 22, 29, 0.15);
-  border-radius: 0.9rem;
-  background-color: rgba(255, 255, 255, 0.85);
+  gap: calc(0.35rem * var(--wagez-scale));
+  min-height: calc(3.125rem * var(--wagez-scale));
+  padding: calc(0.25rem * var(--wagez-scale)) calc(0.6rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-field);
+  background-color: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    inset 0 1px 3px rgba(2, 40, 30, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.45);
   color: var(--wagez-ink);
 }
 
@@ -117,11 +372,11 @@ body {
 .wagez-field input {
   flex: 1 1 auto;
   align-self: stretch;
-  min-height: 2.75rem;
+  min-height: calc(2.75rem * var(--wagez-scale));
   min-width: 0;
   border: 0;
   background-color: transparent;
-  font-size: 1.125rem;
+  font-size: calc(1.125rem * var(--wagez-scale));
   font-weight: 700;
   color: inherit;
 }
@@ -136,8 +391,8 @@ body {
   around the whole group as well.
 */
 .wagez-time {
-  gap: 0.2rem;
-  padding-inline: 0.4rem;
+  gap: calc(0.2rem * var(--wagez-scale));
+  padding-inline: calc(0.4rem * var(--wagez-scale));
 }
 
 .wagez-field.wagez-time:focus-within {
@@ -147,10 +402,11 @@ body {
 /* 1.5rem keeps the segments well above the size that makes iOS zoom on focus. */
 .wagez-field input.wagez-time-segment {
   flex: 0 0 auto;
-  width: 2.75rem;
+  margin-inline-start: 0;
+  width: calc(2.75rem * var(--wagez-scale));
   padding: 0;
   text-align: center;
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--wagez-scale));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -163,11 +419,19 @@ body {
 .wagez-field input.wagez-time-segment:focus {
   outline: 3px solid var(--wagez-ink);
   outline-offset: 1px;
-  border-radius: 0.5rem;
+  border-radius: var(--wagez-radius-control);
+}
+
+/*
+  Free space splits between here and the AM/PM block's own auto margin, which
+  centres the digits in the room left over instead of leaving a void mid-field.
+*/
+.wagez-time>input.wagez-time-segment:first-of-type {
+  margin-inline-start: auto;
 }
 
 .wagez-time-colon {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--wagez-scale));
   font-weight: 800;
   line-height: 1;
   color: rgba(22, 22, 29, 0.45);
@@ -175,20 +439,23 @@ body {
 
 .wagez-meridiem {
   display: flex;
-  gap: 0.25rem;
-  margin-inline-start: 0.3rem;
+  gap: calc(0.25rem * var(--wagez-scale));
+  /* Digits sit left, the half of the day sits right, nothing floats. */
+  margin-inline-start: auto;
+  padding-inline-start: calc(0.5rem * var(--wagez-scale));
 }
 
 .wagez-meridiem button {
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  border-radius: 0.7rem;
+  min-width: calc(2.75rem * var(--wagez-scale));
+  min-height: calc(2.75rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-control);
   background-color: rgba(22, 22, 29, 0.07);
-  font-size: 0.9375rem;
+  font-size: calc(0.9375rem * var(--wagez-scale));
   font-weight: 800;
   letter-spacing: 0.03em;
   color: var(--wagez-ink);
-  transition: background-color 140ms ease;
+  transition:
+    background-color 140ms ease;
 }
 
 .wagez-meridiem button:hover {
@@ -207,12 +474,12 @@ body {
 
 /* Quick minutes and Now: one tap, still a full touch target. */
 .wagez-chip {
-  min-height: 2.75rem;
-  padding-inline: 0.35rem;
-  border: 1px solid rgba(22, 22, 29, 0.12);
-  border-radius: 0.7rem;
-  background-color: rgba(255, 255, 255, 0.75);
-  font-size: 0.875rem;
+  min-height: calc(2.75rem * var(--wagez-scale));
+  padding-inline: calc(0.35rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-control);
+  background-color: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+  font-size: calc(0.875rem * var(--wagez-scale));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--wagez-ink);
@@ -222,12 +489,11 @@ body {
 }
 
 .wagez-chip:hover {
-  background-color: rgba(255, 255, 255, 1);
+  background-color: rgba(255, 255, 255, 0.94);
 }
 
 .wagez-chip[aria-pressed="true"] {
   background-color: var(--wagez-ink);
-  border-color: var(--wagez-ink);
   color: #ffffff;
 }
 
@@ -236,19 +502,45 @@ body {
   outline-offset: 2px;
 }
 
+/*
+  A result that no longer matches the inputs. Dimmed rather than hidden: the old
+  numbers are still true of the old shift. 0.6 is as far as the ink can fade and
+  still clear the contrast floor against every stop of the gradient.
+*/
+.wagez-stale {
+  opacity: 0.6;
+  transition: opacity 140ms ease;
+}
+
+/* Full contrast: this line is the one that has to be read. */
+.wagez-stale-note {
+  display: inline-block;
+  margin-bottom: calc(0.5rem * var(--wagez-scale));
+  padding: calc(0.3rem * var(--wagez-scale)) calc(0.65rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-control);
+  background-color: rgba(22, 22, 29, 0.1);
+  font-size: calc(0.875rem * var(--wagez-scale));
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--wagez-ink);
+}
+
 .wagez-alert {
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--wagez-scale));
   font-weight: 700;
   color: var(--wagez-alert);
 }
 
 .wagez-do-math {
   width: 100%;
-  min-height: 3.5rem;
-  border-radius: 1rem;
+  min-height: calc(3.5rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-field);
   background-color: var(--wagez-action);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 10px 22px -12px rgba(51, 44, 150, 0.75);
   color: #ffffff;
-  font-size: 1.375rem;
+  font-size: calc(1.375rem * var(--wagez-scale));
   font-weight: 800;
   letter-spacing: -0.01em;
   transition:
@@ -272,12 +564,14 @@ body {
 
 /* Secondary actions: full touch target, no visual competition. */
 .wagez-quiet-button {
-  min-height: 2.75rem;
-  padding-inline: 1rem;
-  border-radius: 0.75rem;
+  min-height: calc(2.75rem * var(--wagez-scale));
+  padding-inline: calc(1rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-control);
+  font-size: calc(1rem * var(--wagez-scale));
   font-weight: 700;
   color: var(--wagez-ink);
-  transition: background-color 140ms ease;
+  transition:
+    background-color 140ms ease;
 }
 
 .wagez-quiet-button:hover {

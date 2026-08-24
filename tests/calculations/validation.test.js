@@ -24,7 +24,7 @@ describe("isBlank", () => {
 });
 
 describe("validateShiftInput — times", () => {
-  it("accepts a start and an end", () => {
+  it("accepts a start and a stop", () => {
     const validation = validateShiftInput(shift);
     expect(validation.ok).toBe(true);
     expect(validation.errors).toEqual({});
@@ -42,14 +42,14 @@ describe("validateShiftInput — times", () => {
     expect(validation.values.endTime).toBe("23:47");
   });
 
-  it("asks for a missing clock-in", () => {
+  it("asks for a missing start time", () => {
     const validation = validateShiftInput({ endTime: "17:00" });
     expect(validation.ok).toBe(false);
     expect(validation.errors.startTime).toBe(MESSAGES.startMissing);
     expect(validation.message).toBe(MESSAGES.startMissing);
   });
 
-  it("asks for a missing clock-out", () => {
+  it("asks for a missing stop time", () => {
     const validation = validateShiftInput({ startTime: "09:00" });
     expect(validation.ok).toBe(false);
     expect(validation.errors.endTime).toBe(MESSAGES.endMissing);
