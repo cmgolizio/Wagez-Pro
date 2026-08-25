@@ -10,7 +10,7 @@ afterEach(cleanup);
 
 const LABEL = "Start:";
 /** What a screen reader hears — the visible label without its colon. */
-const NAME = "Stop";
+const NAME = "Start";
 
 /** A stand-in for the draft above: the time lives outside the control. */
 function Harness({ initial = "", error }) {

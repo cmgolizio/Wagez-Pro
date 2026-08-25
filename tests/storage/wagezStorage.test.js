@@ -1,0 +1,203 @@
+import { describe, expect, it } from "vitest";
+
+import { SUNDAY } from "@/lib/dates/isoDate";
+import {
+  STORAGE_KEY,
+  STORAGE_VERSION,
+  clearWagezData,
+  defaultWagezData,
+  loadWagezData,
+  migrateStoredData,
+  saveWagezData,
+  validateStoredData,
+} from "@/lib/storage/wagezStorage";
+
+/** A stand-in for the browser's local storage, including the ways it fails. */
+function fakeStorage(initial = {}, { throwOnWrite = false } = {}) {
+  const entries = new Map(Object.entries(initial));
+
+  return {
+    getItem: (key) => (entries.has(key) ? entries.get(key) : null),
+    setItem: (key, value) => {
+      if (throwOnWrite) throw new Error("QuotaExceededError");
+      entries.set(key, String(value));
+    },
+    removeItem: (key) => entries.delete(key),
+    has: (key) => entries.has(key),
+    raw: (key) => entries.get(key),
+  };
+}
+
+const SHIFT = {
+  id: "abc",
+  date: "2026-08-17",
+  startTime: "16:00",
+  endTime: "23:30",
+  hourlyRateCents: 2000,
+  breakMinutes: 0,
+  createdAt: "2026-08-17T23:35:00.000Z",
+  updatedAt: "2026-08-17T23:35:00.000Z",
+};
+
+function stored(data) {
+  return { [STORAGE_KEY]: JSON.stringify(data) };
+}
+
+describe("defaults", () => {
+  it("starts empty, at the current version", () => {
+    expect(defaultWagezData()).toEqual({
+      version: STORAGE_VERSION,
+      settings: { weekStartsOn: SUNDAY },
+      shifts: [],
+    });
+  });
+
+  it("loads defaults when nothing has ever been saved", () => {
+    expect(loadWagezData(fakeStorage())).toEqual(defaultWagezData());
+  });
+
+  it("loads defaults when there is no storage at all", () => {
+    expect(loadWagezData(null)).toEqual(defaultWagezData());
+  });
+});
+
+describe("loading", () => {
+  it("reads back what was saved", () => {
+    const storage = fakeStorage(
+      stored({
+        version: STORAGE_VERSION,
+        settings: { weekStartsOn: "monday" },
+        shifts: [SHIFT],
+      }),
+    );
+
+    const data = loadWagezData(storage);
+
+    expect(data.settings.weekStartsOn).toBe("monday");
+    expect(data.shifts).toEqual([SHIFT]);
+  });
+
+  it("does not crash on malformed JSON", () => {
+    const storage = fakeStorage({ [STORAGE_KEY]: "{not json" });
+
+    expect(loadWagezData(storage)).toEqual(defaultWagezData());
+  });
+
+  it("does not crash on a version it cannot read", () => {
+    const storage = fakeStorage(stored({ version: 99, shifts: [SHIFT] }));
+
+    expect(loadWagezData(storage)).toEqual(defaultWagezData());
+  });
+
+  it("does not crash on the wrong shape entirely", () => {
+    expect(loadWagezData(fakeStorage({ [STORAGE_KEY]: '"hello"' }))).toEqual(
+      defaultWagezData(),
+    );
+    expect(loadWagezData(fakeStorage({ [STORAGE_KEY]: "null" }))).toEqual(
+      defaultWagezData(),
+    );
+  });
+
+  it("does not crash when reading throws", () => {
+    const storage = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+    };
+
+    expect(loadWagezData(storage)).toEqual(defaultWagezData());
+  });
+
+  it("keeps the good shifts and drops the broken one", () => {
+    const storage = fakeStorage(
+      stored({
+        version: STORAGE_VERSION,
+        settings: {},
+        shifts: [SHIFT, { id: "bad", date: "Monday" }, null],
+      }),
+    );
+
+    expect(loadWagezData(storage).shifts).toEqual([SHIFT]);
+  });
+});
+
+describe("saving", () => {
+  it("writes data that loads back identically", () => {
+    const storage = fakeStorage();
+    const data = { ...defaultWagezData(), shifts: [SHIFT] };
+
+    expect(saveWagezData(data, storage)).toBe(true);
+    expect(loadWagezData(storage)).toEqual(data);
+  });
+
+  it("never writes a shift it would refuse to read", () => {
+    const storage = fakeStorage();
+    saveWagezData(
+      { ...defaultWagezData(), shifts: [SHIFT, { id: "bad" }] },
+      storage,
+    );
+
+    expect(JSON.parse(storage.raw(STORAGE_KEY)).shifts).toEqual([SHIFT]);
+  });
+
+  it("says so, rather than throwing, when the device refuses", () => {
+    const storage = fakeStorage({}, { throwOnWrite: true });
+
+    expect(saveWagezData(defaultWagezData(), storage)).toBe(false);
+  });
+
+  it("says so when there is no storage at all", () => {
+    expect(saveWagezData(defaultWagezData(), null)).toBe(false);
+  });
+});
+
+describe("clearing", () => {
+  it("removes everything Wagez has saved", () => {
+    const storage = fakeStorage(
+      stored({ version: STORAGE_VERSION, settings: {}, shifts: [SHIFT] }),
+    );
+
+    expect(clearWagezData(storage)).toBe(true);
+    expect(storage.has(STORAGE_KEY)).toBe(false);
+    expect(loadWagezData(storage)).toEqual(defaultWagezData());
+  });
+});
+
+describe("validateStoredData", () => {
+  it("falls back to the default week start for anything unrecognised", () => {
+    expect(
+      validateStoredData({ settings: { weekStartsOn: "tuesday" } }),
+    ).toEqual(defaultWagezData());
+    expect(validateStoredData({ settings: null }).settings.weekStartsOn).toBe(
+      SUNDAY,
+    );
+  });
+
+  it("refuses a second shift claiming an id that is taken", () => {
+    const data = validateStoredData({
+      shifts: [SHIFT, { ...SHIFT, startTime: "09:00" }],
+    });
+
+    expect(data.shifts).toHaveLength(1);
+    expect(data.shifts[0].startTime).toBe("16:00");
+  });
+
+  it("copes with shifts that are not a list", () => {
+    expect(validateStoredData({ shifts: "none" }).shifts).toEqual([]);
+    expect(validateStoredData(undefined)).toEqual(defaultWagezData());
+  });
+});
+
+describe("migrateStoredData", () => {
+  it("passes through data at the current version", () => {
+    const data = { version: STORAGE_VERSION, settings: {}, shifts: [] };
+
+    expect(migrateStoredData(data)).toBe(data);
+  });
+
+  it("refuses data from a version it does not know", () => {
+    expect(migrateStoredData({ version: 0 })).toBeNull();
+    expect(migrateStoredData({ shifts: [] })).toBeNull();
+    expect(migrateStoredData(null)).toBeNull();
+  });
+});

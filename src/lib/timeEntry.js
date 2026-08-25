@@ -30,10 +30,16 @@ function typedDigits(text) {
   return digits.length > 2 ? digits.slice(-1) : digits;
 }
 
-/** Split a canonical time into editable segments. */
-export function toParts(value) {
+/**
+ * Split a canonical time into editable segments.
+ *
+ * `defaultMeridiem` is the half of the day an empty field opens on. A shift
+ * usually stops in the afternoon, so the stop time starts on PM while the start
+ * time keeps the AM it has always had.
+ */
+export function toParts(value, defaultMeridiem = AM) {
   const parts = to12Hour(value);
-  if (parts === null) return EMPTY_PARTS;
+  if (parts === null) return { ...EMPTY_PARTS, meridiem: defaultMeridiem };
   return {
     hour: String(parts.hour),
     minute: pad(parts.minute),

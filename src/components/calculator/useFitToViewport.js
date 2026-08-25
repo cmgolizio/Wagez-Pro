@@ -24,18 +24,24 @@ const MAX_STEP = 0.995;
  * that after every render — and on resize, including a phone's keyboard opening
  * — and writes it to `--wagez-fit`, which the scales all multiply by.
  *
+ * Both dimensions count. Height is what usually runs out, but the giant money
+ * on a result is easily wider than the screen it is on, and a value that runs
+ * off the side is no more readable than one that runs off the bottom.
+ *
  * Every measurement here has to be of final geometry, which is why nothing that
  * affects layout is transitioned: a size caught mid-animation would be fitted
  * against the size it was leaving rather than the one it was going to.
  *
+ * @param {boolean} [active] false while the region is off screen, where there
+ *   is nothing to measure — the last fit is kept until it comes back.
  * @returns {object} a ref to attach to the element that must not overflow.
  */
-export default function useFitToViewport() {
+export default function useFitToViewport(active = true) {
   const ref = useRef(null);
 
   const fit = useCallback(() => {
     const node = ref.current;
-    if (node === null) return;
+    if (node === null || !active) return;
 
     // Start from full size: the room available may have grown since last time.
     let scale = 1;
@@ -43,14 +49,20 @@ export default function useFitToViewport() {
 
     for (let pass = 0; pass < MAX_PASSES; pass += 1) {
       // A pixel of slack: sub-pixel layout should not start a shrinking spiral.
-      if (node.scrollHeight <= node.clientHeight + 1 || scale <= MIN_FIT) break;
-      const ratio = node.clientHeight / node.scrollHeight;
+      const tall = node.scrollHeight > node.clientHeight + 1;
+      const wide = node.scrollWidth > node.clientWidth + 1;
+      if ((!tall && !wide) || scale <= MIN_FIT) break;
+
+      const ratio = Math.min(
+        tall ? node.clientHeight / node.scrollHeight : 1,
+        wide ? node.clientWidth / node.scrollWidth : 1,
+      );
       // Type set in viewport units and the readability floors do not shrink
       // with the multiplier, so one division rarely lands it — iterate.
       scale = Math.max(MIN_FIT, scale * Math.min(ratio, MAX_STEP));
       node.style.setProperty("--wagez-fit", String(scale));
     }
-  }, []);
+  }, [active]);
 
   // Any render can change what is on screen, so re-fit after all of them.
   useLayoutEffect(fit);

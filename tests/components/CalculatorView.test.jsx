@@ -1,60 +1,22 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import CalculatorView from "@/components/calculator/CalculatorView";
+import WagezApp from "@/components/WagezApp";
 
-afterEach(cleanup);
+import {
+  cleanupWagez,
+  currentValue,
+  displayedLabels,
+  doMath,
+  enterShift,
+  setRate,
+  setTime,
+  showRate,
+} from "../helpers/wagez";
 
-/**
- * The live input display, i.e. the top third. Scoped to the display list: the
- * editor below it labels its fields with the same words.
- */
-function currentValue(label) {
-  const term = [...document.querySelectorAll("dl dt")].find(
-    (dt) => dt.textContent === label,
-  );
-  return term === undefined ? null : term.nextElementSibling.textContent;
-}
-
-/** Labels in the display appear only once their value is entered. */
-function displayedLabels() {
-  return [...document.querySelectorAll("dt")].map((dt) => dt.textContent);
-}
-
-/**
- * Enter a canonical `"HH:MM"` through the segmented control, the way the
- * control is actually operated: hour, minute, then the half of the day.
- */
-function setTime(label, time) {
-  const [hour24, minute] = time.split(":").map(Number);
-  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
-
-  const hourInput = screen.getByLabelText(`${label} hour`);
-  hourInput.focus();
-  fireEvent.change(hourInput, { target: { value: String(hour) } });
-
-  const minuteInput = screen.getByLabelText(`${label} minutes`);
-  minuteInput.focus();
-  fireEvent.change(minuteInput, {
-    target: { value: String(minute).padStart(2, "0") },
-  });
-
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: `${label} ${hour24 < 12 ? "AM" : "PM"}`,
-    }),
-  );
-}
-
-function setRate(value) {
-  fireEvent.change(screen.getByLabelText(/pay rate/i), { target: { value } });
-}
-
-function doMath() {
-  fireEvent.click(screen.getByRole("button", { name: "Do Math." }));
-}
+afterEach(cleanupWagez);
 
 const STALE_NOTE = "Inputs changed — Do Math. again.";
 
@@ -63,15 +25,9 @@ function staleResult() {
   return document.querySelector(".wagez-stale");
 }
 
-function enterShift({ start, end, rate }) {
-  setTime("Start", start);
-  setTime("Stop", end);
-  if (rate !== undefined) setRate(rate);
-}
-
 describe("calculating a single shift", () => {
   it("shows entered values immediately, but no result until Do Math.", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
 
     expect(displayedLabels()).toEqual([]);
 
@@ -94,7 +50,7 @@ describe("calculating a single shift", () => {
   });
 
   it("takes a whole shift from the quick controls alone", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
 
     fireEvent.change(screen.getByLabelText("Start hour"), {
       target: { value: "9" },
@@ -119,7 +75,7 @@ describe("calculating a single shift", () => {
   });
 
   it("calculates a partial hour at a decimal rate", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:15", end: "17:45", rate: "22.50" });
     doMath();
 
@@ -128,7 +84,7 @@ describe("calculating a single shift", () => {
   });
 
   it("calculates an overnight shift", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "22:00", end: "03:00", rate: "18" });
     doMath();
 
@@ -137,7 +93,7 @@ describe("calculating a single shift", () => {
   });
 
   it("reports time worked without inventing earnings when the rate is blank", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00" });
     doMath();
 
@@ -146,7 +102,7 @@ describe("calculating a single shift", () => {
   });
 
   it("recalculates only when Do Math. is pressed again", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "16:00", end: "23:00", rate: "20" });
     doMath();
     expect(screen.getByText("7 hours.")).not.toBeNull();
@@ -165,30 +121,30 @@ describe("calculating a single shift", () => {
 
 describe("invalid input", () => {
   it("asks for a missing clock-in time instead of calculating", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     setTime("Stop", "17:00");
     doMath();
 
     expect(screen.getByRole("alert").textContent).toBe(
-      "What time did you start?",
+      "What is the start time?",
     );
     expect(screen.queryByText("You worked:")).toBeNull();
     expect(screen.getByLabelText("Start hour")).toBe(document.activeElement);
   });
 
   it("refuses to read an identical start and end as a 24-hour shift", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "09:00" });
     doMath();
 
     expect(screen.getByRole("alert").textContent).toBe(
-      "Start and end time can't be the same.",
+      "Start and stop time can't be the same.",
     );
     expect(screen.queryByText("You worked:")).toBeNull();
   });
 
   it("rejects a nonsense rate and clears the complaint once it is fixed", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "abc" });
     doMath();
 
@@ -206,7 +162,7 @@ describe("invalid input", () => {
 
 describe("reset", () => {
   it("clears the inputs and the result", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
     expect(screen.getByText("$160.00")).not.toBeNull();
@@ -223,7 +179,7 @@ describe("reset", () => {
 
 describe("stale results", () => {
   it("marks the result stale until Do Math. is pressed again", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
 
     // 1-3. The entered values show at once; nothing is calculated yet.
     enterShift({ start: "16:00", end: "23:00", rate: "20" });
@@ -261,7 +217,7 @@ describe("stale results", () => {
   });
 
   it("stales the result when the rate changes", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
     expect(screen.getByText("$160.00")).not.toBeNull();
@@ -278,7 +234,7 @@ describe("stale results", () => {
   });
 
   it("stales the result while a time is half-edited", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
 
@@ -293,7 +249,7 @@ describe("stale results", () => {
   });
 
   it("does not stale a result when an input is rewritten to the same value", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
 
@@ -306,7 +262,7 @@ describe("stale results", () => {
   });
 
   it("drops a stale result rather than staling it forever after a bad Do Math.", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
 
@@ -322,7 +278,7 @@ describe("stale results", () => {
   });
 
   it("clears the stale marker along with the result on reset", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
     setRate("25");
@@ -342,7 +298,7 @@ describe("the display grows with what has been entered", () => {
   }
 
   it("shows no labels at all until something is entered", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
 
     expect(displayedLabels()).toEqual([]);
     expect(screen.queryByText("Start:", { selector: "dt" })).toBeNull();
@@ -351,7 +307,7 @@ describe("the display grows with what has been entered", () => {
   });
 
   it("adds each label only as its own value is entered", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
 
     setTime("Start", "16:00");
     expect(displayedLabels()).toEqual(["Start:"]);
@@ -369,7 +325,7 @@ describe("the display grows with what has been entered", () => {
   });
 
   it("takes a label away again when its value is cleared", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     expect(editorEntered()).toBe("3");
 
@@ -385,7 +341,7 @@ describe("the display grows with what has been entered", () => {
   });
 
   it("returns to its largest, empty state on reset", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
     expect(editorEntered()).toBe("3");
@@ -397,12 +353,19 @@ describe("the display grows with what has been entered", () => {
   });
 
   it("keeps the editor's own field labels visible at all times", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
 
     // Nothing entered: no display labels, but every input is still labelled.
     expect(displayedLabels()).toEqual([]);
     expect(screen.getByRole("group", { name: "Start:" })).not.toBeNull();
     expect(screen.getByRole("group", { name: "Stop:" })).not.toBeNull();
+    expect(
+      [...document.querySelectorAll(".wagez-field-label")].map(
+        (el) => el.textContent,
+      ),
+    ).toEqual(["Start:", "Stop:"]);
+
+    showRate();
     expect(screen.getByLabelText(/pay rate/i)).not.toBeNull();
     expect(
       [...document.querySelectorAll(".wagez-field-label")].map(
@@ -423,12 +386,12 @@ describe("the screen hands itself between the inputs and the answer", () => {
   const entered = () => document.querySelector(".wagez-entered");
 
   it("starts with the inputs owning the screen", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     expect(stage()).toEqual({ stage: "editing", peek: undefined });
   });
 
   it("hands the screen to the result once Do Math. succeeds", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "16:00", end: "23:00", rate: "20" });
     expect(stage().stage).toBe("editing");
 
@@ -441,7 +404,7 @@ describe("the screen hands itself between the inputs and the answer", () => {
   });
 
   it("keeps the screen on the inputs when Do Math. only finds a mistake", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "09:00" });
     doMath();
 
@@ -450,7 +413,7 @@ describe("the screen hands itself between the inputs and the answer", () => {
   });
 
   it("brings the inputs part of the way back on hover, from either region", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
 
@@ -466,7 +429,7 @@ describe("the screen hands itself between the inputs and the answer", () => {
   });
 
   it("hands the screen back when the shrunken editor is clicked", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
     fireEvent.mouseEnter(editor());
@@ -480,7 +443,7 @@ describe("the screen hands itself between the inputs and the answer", () => {
   });
 
   it("hands the screen back when the shrunken values are clicked", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
 
@@ -490,7 +453,7 @@ describe("the screen hands itself between the inputs and the answer", () => {
   });
 
   it("hands the screen back when the keyboard tabs into the editor", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
     expect(stage().stage).toBe("result");
@@ -502,7 +465,7 @@ describe("the screen hands itself between the inputs and the answer", () => {
   });
 
   it("hands the screen back the moment the shift is edited", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
     expect(stage().stage).toBe("result");
@@ -516,7 +479,7 @@ describe("the screen hands itself between the inputs and the answer", () => {
   });
 
   it("returns the screen to the inputs on reset", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
 
@@ -529,18 +492,215 @@ describe("the screen hands itself between the inputs and the answer", () => {
 
 describe("arriving at Wagez", () => {
   it("puts the caret in the clock-in hour, ready for a number", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
 
     expect(screen.getByLabelText("Start hour")).toBe(document.activeElement);
   });
 
   it("takes the first digit typed straight into the clock-in hour", () => {
-    render(<CalculatorView />);
+    render(<WagezApp />);
 
     // No aiming: whatever is focused on arrival is where the shift starts.
     fireEvent.change(document.activeElement, { target: { value: "9" } });
     fireEvent.click(screen.getByRole("button", { name: "Start 0 minutes" }));
 
     expect(currentValue("Start:")).toBe("9:00 AM");
+  });
+});
+
+describe("typing a whole shift without touching the mouse", () => {
+  /** Type digits into a segment the way a person does, one key at a time. */
+  function type(input, digits) {
+    input.focus();
+    [...digits].forEach((digit, index) => {
+      fireEvent.change(input, {
+        target: { value: index === 0 ? digit : input.value + digit },
+      });
+    });
+  }
+
+  it("hands the caret along as each part of a time is finished", () => {
+    render(<WagezApp />);
+
+    // Arrival puts it in the start hour; the hour hands over to the minute.
+    expect(screen.getByLabelText("Start hour")).toBe(document.activeElement);
+    type(document.activeElement, "4");
+    expect(screen.getByLabelText("Start minutes")).toBe(document.activeElement);
+
+    // A whole time still has the half of the day left to decide.
+    type(document.activeElement, "15");
+    expect(screen.getByRole("button", { name: "Start AM" })).toBe(
+      document.activeElement,
+    );
+
+    // Deciding it finishes the start time, so the stop time takes over.
+    fireEvent.keyDown(document.activeElement, { key: "p" });
+    expect(currentValue("Start:")).toBe("4:15 PM");
+    expect(screen.getByLabelText("Stop hour")).toBe(document.activeElement);
+  });
+
+  it("skips the AM/PM step when the hour already said which half it is", () => {
+    render(<WagezApp />);
+
+    // 16 can only be the afternoon, so there is nothing left to ask.
+    type(screen.getByLabelText("Start hour"), "16");
+    type(document.activeElement, "15");
+
+    expect(currentValue("Start:")).toBe("4:15 PM");
+    expect(screen.getByLabelText("Stop hour")).toBe(document.activeElement);
+  });
+
+  it("lands on Do Math. once both times are in", () => {
+    render(<WagezApp />);
+    type(screen.getByLabelText("Start hour"), "9");
+    type(document.activeElement, "00");
+    fireEvent.keyDown(document.activeElement, { key: "a" });
+
+    type(screen.getByLabelText("Stop hour"), "5");
+    type(document.activeElement, "30");
+    fireEvent.keyDown(document.activeElement, { key: "p" });
+
+    // Nothing left to type: the answer is under the return key.
+    expect(screen.getByRole("button", { name: "Do Math." })).toBe(
+      document.activeElement,
+    );
+
+    fireEvent.click(document.activeElement);
+    expect(screen.getByText("8 hours + 30 min.")).not.toBeNull();
+  });
+
+  it("stops at the pay rate instead when one has been asked for", () => {
+    render(<WagezApp />);
+    showRate();
+
+    setTime("Start", "09:00");
+    type(screen.getByLabelText("Stop hour"), "5");
+    type(document.activeElement, "30");
+    fireEvent.keyDown(document.activeElement, { key: "p" });
+
+    expect(screen.getByLabelText(/pay rate/i)).toBe(document.activeElement);
+  });
+
+  it("passes a pay rate that is already filled in", () => {
+    render(<WagezApp />);
+    setRate("20");
+
+    setTime("Start", "09:00");
+    type(screen.getByLabelText("Stop hour"), "5");
+    type(document.activeElement, "30");
+    fireEvent.keyDown(document.activeElement, { key: "p" });
+
+    expect(screen.getByRole("button", { name: "Do Math." })).toBe(
+      document.activeElement,
+    );
+  });
+
+  it("does not chase the caret out of a time being corrected", () => {
+    render(<WagezApp />);
+    enterShift({ start: "16:00", end: "23:00" });
+
+    // Going back to the start hour must leave the user in the start time.
+    const hour = screen.getByLabelText("Start hour");
+    type(hour, "5");
+
+    expect(screen.getByLabelText("Start minutes")).toBe(document.activeElement);
+  });
+});
+
+describe("the pay rate stays out of the way until it is wanted", () => {
+  const toggle = () => screen.getByRole("button", { name: "$/hour" });
+
+  /** The X drawn across the toggle when the field below it is showing. */
+  const crossedOut = () => document.querySelector(".wagez-reveal-x");
+
+  it("shows nothing but a word until that word is pressed", () => {
+    render(<WagezApp />);
+
+    expect(screen.queryByLabelText(/pay rate/i)).toBeNull();
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    expect(crossedOut()).toBeNull();
+
+    fireEvent.click(toggle());
+
+    expect(screen.getByLabelText(/pay rate/i)).not.toBeNull();
+    expect(toggle().getAttribute("aria-expanded")).toBe("true");
+    // Same word, now crossed out and marked as the way back.
+    expect(toggle().textContent).toContain("$/hour");
+    expect(toggle().dataset.open).toBe("true");
+    expect(crossedOut()).not.toBeNull();
+  });
+
+  it("puts the field directly below the word that revealed it", () => {
+    render(<WagezApp />);
+    fireEvent.click(toggle());
+
+    const field = screen.getByLabelText(/pay rate/i);
+
+    expect(
+      toggle().compareDocumentPosition(field) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("takes the rate away with it when pressed again", () => {
+    render(<WagezApp />);
+    enterShift({ start: "09:00", end: "17:00", rate: "20" });
+    expect(currentValue("Pay Rate:")).toBe("$20/hour");
+
+    fireEvent.click(toggle());
+
+    // Gone from the panel, gone from the display, and gone from the answer:
+    // a rate nobody can see must not quietly go on earning money.
+    expect(screen.queryByLabelText(/pay rate/i)).toBeNull();
+    expect(displayedLabels()).toEqual(["Start:", "Stop:"]);
+
+    doMath();
+    expect(screen.getByText("8 hours.")).not.toBeNull();
+    expect(screen.queryByText("and made:")).toBeNull();
+  });
+
+  it("controls the field it names", () => {
+    render(<WagezApp />);
+    fireEvent.click(toggle());
+
+    expect(toggle().getAttribute("aria-controls")).toBe(
+      screen.getByLabelText(/pay rate/i).id,
+    );
+  });
+});
+
+describe("the day is optional in the same way", () => {
+  const toggle = () => screen.getByRole("button", { name: "Add day" });
+
+  it("opens on today, and says so above", () => {
+    render(<WagezApp />);
+    expect(screen.queryByLabelText("Day")).toBeNull();
+
+    fireEvent.click(toggle());
+
+    const today = screen.getByLabelText("Day");
+    expect(today.value).not.toBe("");
+    expect(displayedLabels()).toEqual(["Day:"]);
+    expect(today).toBe(document.activeElement);
+  });
+
+  it("takes the day away again when pressed a second time", () => {
+    render(<WagezApp />);
+    fireEvent.click(toggle());
+    fireEvent.click(toggle());
+
+    expect(screen.queryByLabelText("Day")).toBeNull();
+    expect(displayedLabels()).toEqual([]);
+  });
+
+  it("does not stale a standing answer, because it changes none of it", () => {
+    render(<WagezApp />);
+    enterShift({ start: "09:00", end: "17:00", rate: "20" });
+    doMath();
+
+    fireEvent.click(toggle());
+
+    expect(screen.queryByText(STALE_NOTE)).toBeNull();
+    expect(screen.getByText("$160.00")).not.toBeNull();
   });
 });

@@ -16,7 +16,15 @@ describe("shiftSignature", () => {
     expect(shiftSignature({ ...SHIFT, endTime: "23:30" })).not.toBe(original);
     expect(shiftSignature({ ...SHIFT, hourlyRate: "21" })).not.toBe(original);
     expect(shiftSignature({ ...SHIFT, breakMinutes: "30" })).not.toBe(original);
-    expect(shiftSignature({ ...SHIFT, date: "2026-08-23" })).not.toBe(original);
+  });
+
+  it("ignores the day the shift was worked", () => {
+    // The date changes nothing the result says, so a result made before the
+    // day was chosen is still a true answer to what is on screen. Staling it
+    // would mean "Add to week" could never date a shift and then save it.
+    expect(shiftSignature({ ...SHIFT, date: "2026-08-23" })).toBe(
+      shiftSignature(SHIFT),
+    );
   });
 
   it("ignores rewriting the same values differently", () => {

@@ -50,8 +50,8 @@
   /* Base type for the giant values, before any scale is applied. */
   --wagez-text-label: clamp(0.8rem, 2.6vw, 1rem);
   --wagez-text-value: clamp(1.625rem, 7vw, 2.5rem);
-  --wagez-text-duration: clamp(1.75rem, 7.5vw, 2.75rem);
-  --wagez-text-money: clamp(2.25rem, 10vw, 4rem);
+  --wagez-text-duration: clamp(1.75rem, 9vw, 4.5rem);
+  --wagez-text-money: clamp(2.5rem, 22vw, 13rem);
 }
 
 @theme inline {
@@ -88,6 +88,20 @@ body {
   overscroll-behavior: none;
 }
 
+/*
+  Anything that can be pressed says so under the pointer.
+
+  Every Wagez control pairs this with a visible change of its own — a fill, a
+  colour, a wash — and none of those changes may alter the element's size or
+  position: a control that grows under the pointer moves out from under it and
+  flickers between the two states.
+*/
+button:not(:disabled),
+[role="button"],
+summary {
+  cursor: pointer;
+}
+
 /* Keep content clear of notches, rounded corners and the home indicator. */
 .wagez-safe-area {
   padding-top: max(1rem, env(safe-area-inset-top));
@@ -99,6 +113,8 @@ body {
 /* The whole app, exactly one screen tall. */
 .wagez-shell {
   height: 100dvh;
+  max-width: 42rem;
+  margin-inline: auto;
   overflow: hidden;
 }
 
@@ -138,9 +154,16 @@ body {
   --wagez-scale: calc(var(--wagez-emphasis) * var(--wagez-entered-scale) * var(--wagez-fit));
 }
 
-/* Editing: the inputs lead, and any standing result waits quietly below. */
+/*
+  Editing: the inputs lead, and any standing result waits quietly below.
+
+  The region is also a container, so the answer inside it can be sized against
+  the room it actually has — a column on a wide screen, the whole width on a
+  phone — rather than against the viewport it is somewhere inside of.
+*/
 .wagez-result {
   --wagez-emphasis: 0.6;
+  container-type: inline-size;
 }
 
 /* Calculated: the money is the headline and everything else gets out of its way. */
@@ -153,20 +176,7 @@ body {
 }
 
 [data-stage="result"] .wagez-result {
-  --wagez-emphasis: 1.3;
-}
-
-/* Hovering the shrunken inputs: part of the way back, at the money's expense. */
-[data-stage="result"][data-peek="true"] .wagez-entered {
-  --wagez-emphasis: 0.74;
-}
-
-[data-stage="result"][data-peek="true"] .wagez-panel {
-  --wagez-emphasis: 0.78;
-}
-
-[data-stage="result"][data-peek="true"] .wagez-result {
-  --wagez-emphasis: 0.92;
+  --wagez-emphasis: 1.7;
 }
 
 /* The editor grows into an empty screen and gives the room back as it fills. */
@@ -217,14 +227,23 @@ body {
   color: var(--wagez-ink);
 }
 
+/*
+  The answer is set on one line and sized against the column it is in, not only
+  against the viewport: `10cqi` and `22cqi` are the largest a duration and an
+  amount of that many characters can be and still fit the room they have. The
+  fit multiplier catches whatever is left over.
+*/
 .wagez-duration {
-  font-size: max(calc(1.05rem * var(--wagez-fit)),
-      calc(var(--wagez-text-duration) * var(--wagez-scale)));
+  font-size: min(max(calc(1.05rem * var(--wagez-fit)),
+        calc(var(--wagez-text-duration) * var(--wagez-scale))),
+      10cqi);
+  white-space: nowrap;
   color: var(--wagez-ink);
 }
 
 .wagez-money {
-  font-size: calc(var(--wagez-text-money) * var(--wagez-scale));
+  font-size: min(calc(var(--wagez-text-money) * var(--wagez-scale)), 22cqi);
+  white-space: nowrap;
   color: var(--wagez-money);
 }
 
@@ -239,9 +258,43 @@ body {
   color: var(--wagez-ink);
 }
 
-/* Stepped back and waiting to be clicked back into place. */
+/*
+  Stepped back and waiting to be clicked back into place.
+
+  The cue is colour only — a wash and a hairline, both of which leave the box
+  exactly where it was. Nothing here may resize on hover: growing under the
+  pointer moves the element out from under it, which un-hovers it, which shrinks
+  it back, which hovers it again. The padding is therefore always present rather
+  than appearing with the wash.
+*/
 .wagez-recallable {
   cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    outline-color 140ms ease;
+  /* An outline draws outside the box without occupying any: hovering can
+     therefore say "press me" without moving a single pixel of layout. */
+  outline: 2px solid transparent;
+  outline-offset: 4px;
+}
+
+.wagez-recallable:hover {
+  outline-color: rgba(255, 255, 255, 0.8);
+}
+
+.wagez-entered.wagez-recallable,
+.wagez-result.wagez-recallable {
+  padding: calc(0.5rem * var(--wagez-scale)) calc(0.9rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-panel);
+}
+
+.wagez-entered.wagez-recallable:hover,
+.wagez-result.wagez-recallable:hover {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+.wagez-panel.wagez-recallable:hover {
+  background-color: rgba(255, 255, 255, 0.55);
 }
 
 /*
@@ -467,6 +520,10 @@ body {
   color: #ffffff;
 }
 
+.wagez-meridiem button[aria-pressed="true"]:hover {
+  background-color: #33333f;
+}
+
 .wagez-meridiem button:focus-visible {
   outline: 3px solid var(--wagez-ink);
   outline-offset: 2px;
@@ -495,6 +552,10 @@ body {
 .wagez-chip[aria-pressed="true"] {
   background-color: var(--wagez-ink);
   color: #ffffff;
+}
+
+.wagez-chip[aria-pressed="true"]:hover {
+  background-color: #33333f;
 }
 
 .wagez-chip:focus-visible {
@@ -581,6 +642,390 @@ body {
 .wagez-quiet-button:focus-visible {
   outline: 3px solid var(--wagez-ink);
   outline-offset: 2px;
+}
+
+/*
+  Shift / Week. Wagez has two screens, so its navigation is two words.
+*/
+.wagez-switch {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: var(--wagez-radius-control);
+  background-color: rgba(255, 255, 255, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.wagez-switch button {
+  min-height: 2.75rem;
+  padding-inline: 0.9rem;
+  border-radius: calc(var(--wagez-radius-control) - 1px);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--wagez-ink);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.wagez-switch button:hover {
+  background-color: rgba(255, 255, 255, 0.72);
+}
+
+.wagez-switch button[aria-pressed="true"] {
+  background-color: var(--wagez-ink);
+  color: #ffffff;
+}
+
+.wagez-switch button[aria-pressed="true"]:hover {
+  background-color: #33333f;
+}
+
+.wagez-switch button:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
+/*
+  The optional half of a shift — a pay rate, a day — each behind its own word.
+
+  Text and nothing else: no box, no fill, nothing competing with the shift
+  itself. Open, the field below carries the name, so the word gives way to a
+  small red X whose only job is to take the field away again.
+*/
+.wagez-reveal-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(1.5rem * var(--wagez-scale));
+}
+
+.wagez-reveal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(2.75rem * var(--wagez-scale));
+  padding-inline: calc(0.5rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-control);
+  font-size: calc(1rem * var(--wagez-scale));
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--wagez-ink);
+  transition: color 140ms ease;
+}
+
+.wagez-reveal:hover {
+  color: var(--wagez-action);
+}
+
+/* Open: a square target holding nothing but the X. */
+.wagez-reveal[data-open="true"] {
+  width: calc(2.75rem * var(--wagez-scale));
+  padding-inline: 0;
+  color: var(--wagez-alert);
+}
+
+.wagez-reveal[data-open="true"]:hover {
+  background-color: rgba(179, 38, 30, 0.12);
+  color: var(--wagez-alert);
+}
+
+.wagez-reveal:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
+/*
+  Drawn rather than set as a glyph, so the weight of the two strokes is Wagez's
+  decision and not the font's. Square, and a little smaller than the target it
+  sits in — the touch area stays a full 44px while the mark itself stays small.
+*/
+.wagez-reveal-x {
+  width: calc(1.15rem * var(--wagez-scale));
+  height: calc(1.15rem * var(--wagez-scale));
+  pointer-events: none;
+}
+
+.wagez-reveal-x line {
+  stroke: currentColor;
+  /* User units against the 100-square viewBox, so it thickens with the mark. */
+  stroke-width: 14;
+  stroke-linecap: round;
+}
+
+/* The native date control, wearing the same field as everything else. */
+.wagez-field input[type="date"] {
+  font-variant-numeric: tabular-nums;
+}
+
+.wagez-field input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.wagez-field input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+/*
+  Saving an answer into the week. It sits under the result because that is what
+  it acts on, but it never grows with it: the money is the headline, this is a
+  door out of the room.
+*/
+.wagez-result-actions {
+  --wagez-scale: calc(0.95 * var(--wagez-fit));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(0.2rem * var(--wagez-scale));
+  margin-top: calc(0.9rem * var(--wagez-scale));
+}
+
+.wagez-result-note {
+  font-size: calc(0.9375rem * var(--wagez-scale));
+  font-weight: 700;
+  color: var(--wagez-ink);
+}
+
+.wagez-inline-button {
+  font-weight: 800;
+  color: var(--wagez-action);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.wagez-inline-button:hover {
+  color: var(--wagez-ink);
+}
+
+.wagez-inline-button:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
+/*
+  The week.
+
+  Bold cards over the gradient rather than rows in a table: this is a list of
+  shifts somebody worked, not a timesheet. Only the list itself scrolls, so the
+  week never pushes the page around.
+*/
+.wagez-week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.wagez-week-nav button {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.wagez-week-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.wagez-week-name {
+  font-size: clamp(1.15rem, 4.5vw, 1.6rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--wagez-ink);
+}
+
+.wagez-week-range {
+  font-size: clamp(0.8rem, 3vw, 0.95rem);
+  font-weight: 700;
+  color: var(--wagez-muted);
+}
+
+.wagez-week-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 0;
+}
+
+.wagez-week-summary {
+  text-align: center;
+}
+
+.wagez-week-count {
+  font-size: clamp(1rem, 4vw, 1.25rem);
+  font-weight: 800;
+  color: var(--wagez-ink);
+}
+
+.wagez-week-total {
+  font-size: clamp(1.5rem, 7vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--wagez-ink);
+}
+
+.wagez-week-money {
+  font-size: clamp(2rem, 9vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--wagez-money);
+}
+
+.wagez-week-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.wagez-week-empty {
+  max-width: 26rem;
+  margin-inline: auto;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--wagez-ink);
+}
+
+.wagez-shift-card {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--wagez-radius-field);
+  background-color: rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 10px 20px -16px rgba(2, 40, 30, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.wagez-shift-day {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--wagez-ink);
+}
+
+.wagez-shift-times {
+  font-size: clamp(1.05rem, 4.5vw, 1.35rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--wagez-ink);
+}
+
+.wagez-shift-overnight {
+  font-size: 0.7em;
+  font-weight: 700;
+  color: var(--wagez-muted);
+}
+
+.wagez-shift-totals {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.wagez-shift-duration {
+  font-size: clamp(1rem, 4vw, 1.2rem);
+  font-weight: 800;
+  color: var(--wagez-ink);
+}
+
+.wagez-shift-pay {
+  font-size: clamp(1.15rem, 5vw, 1.5rem);
+  font-weight: 800;
+  color: var(--wagez-money);
+}
+
+/*
+  Wide screens.
+
+  A phone reads the calculator top to bottom; a laptop has room to put the three
+  regions side by side instead — what has been entered on the left, the editor
+  in the middle, the answer on the right. The relationships are unchanged: the
+  editor is the screen until there is an answer, and then the answer is, and the
+  columns re-weight to say so exactly as the type sizes do.
+
+  Every region keeps its column whether or not it currently has anything in it,
+  so an empty display or an unanswered shift leaves the editor centred instead
+  of sliding it to one side.
+*/
+@media (min-width: 60rem) and (min-aspect-ratio: 1/1) {
+  .wagez-shell {
+    max-width: 96rem;
+  }
+
+  .wagez-stage {
+    --wagez-col-entered: 1fr;
+    --wagez-col-editor: 1.5fr;
+    --wagez-col-result: 1fr;
+    display: grid;
+    grid-template-columns:
+      minmax(0, var(--wagez-col-entered)) minmax(min-content, var(--wagez-col-editor)) minmax(0, var(--wagez-col-result));
+    align-items: center;
+    gap: calc(2rem * var(--wagez-fit));
+  }
+
+  .wagez-stage>.wagez-entered {
+    grid-area: 1 / 1;
+  }
+
+  .wagez-stage>.wagez-panel {
+    grid-area: 1 / 2;
+  }
+
+  .wagez-stage>.wagez-result {
+    grid-area: 1 / 3;
+  }
+
+  /* An answer is standing by, so it gets room to stand in. */
+  .wagez-stage[data-answered="true"] {
+    --wagez-col-result: 1.3fr;
+  }
+
+  /* Answered: the money takes most of the screen and the rest steps aside. */
+  .wagez-stage[data-stage="result"] {
+    --wagez-col-entered: 0.75fr;
+    --wagez-col-editor: 0.9fr;
+    --wagez-col-result: 3fr;
+  }
+
+  /*
+    The week is a list, and a list that runs the whole width of a laptop is
+    harder to read, not easier. It keeps a comfortable measure and sits centred,
+    with the totals beside the shifts rather than above them.
+  */
+  .wagez-week {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+
+  .wagez-week-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    gap: 1.75rem;
+  }
+
+  .wagez-week-summary {
+    text-align: left;
+  }
+
+  .wagez-week-empty {
+    margin-inline: 0;
+    text-align: left;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

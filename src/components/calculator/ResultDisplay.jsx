@@ -15,11 +15,44 @@ import { formatDuration } from "@/lib/formatters/duration";
  * When `stale` is set the inputs have changed since this result was made. It
  * stays on screen, dimmed and labelled, rather than disappearing or quietly
  * recalculating: the old numbers are still true of the old shift.
+ *
+ * `steppedBack` means the editor currently owns the screen and this answer has
+ * shrunk out of its way. Clicking it hands the screen back to the answer, which
+ * is the exact arrangement a fresh calculation arrives in — so the two halves
+ * can be swapped as often as the user likes. Clicks that land on a control in
+ * here are that control's, not the swap's.
+ *
+ * "Add to week" lives here because saving is something you do to an answer, and
+ * only to one that still matches the shift on screen. Calculating never saves
+ * anything on its own.
  */
-export default function ResultDisplay({ result, stale = false }) {
+export default function ResultDisplay({
+  result,
+  stale = false,
+  steppedBack = false,
+  onRecall,
+  saved = false,
+  savedDay = null,
+  hint = null,
+  onAddToWeek,
+  onShowWeek,
+}) {
+  /** A press on one of the buttons in here is not a press on the answer. */
+  function handleClick(event) {
+    if (event.target.closest("button") === null) onRecall();
+  }
+
+  const recall =
+    steppedBack && result !== null
+      ? {
+          className: "wagez-result wagez-recallable flex flex-col text-center",
+          onClick: handleClick,
+        }
+      : { className: "wagez-result flex flex-col text-center" };
+
   return (
     <section
-      className='wagez-result flex flex-col text-center'
+      {...recall}
       data-empty={result === null ? "true" : undefined}
       aria-live='polite'
     >
@@ -51,6 +84,35 @@ export default function ResultDisplay({ result, stale = false }) {
               </>
             )}
           </div>
+
+          {/* A stale answer is not this shift, so there is nothing to save. */}
+          {stale ? null : (
+            <div className='wagez-result-actions'>
+              {saved ? (
+                <p className='wagez-result-note'>
+                  Added to {savedDay}.{" "}
+                  <button
+                    type='button'
+                    className='wagez-inline-button'
+                    onClick={onShowWeek}
+                  >
+                    See week
+                  </button>
+                </p>
+              ) : (
+                <button
+                  type='button'
+                  className='wagez-quiet-button'
+                  onClick={onAddToWeek}
+                >
+                  + Add to week
+                </button>
+              )}
+              {hint === null ? null : (
+                <p className='wagez-result-note'>{hint}</p>
+              )}
+            </div>
+          )}
         </>
       )}
     </section>

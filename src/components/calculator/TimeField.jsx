@@ -50,6 +50,15 @@ function stepFromKey(key) {
  *
  * `autoFocus` puts the caret in the hour on arrival, so the first thing a user
  * types lands where a shift starts without them having to aim at anything.
+ *
+ * `onComplete` continues that idea past this one field: the moment the segments
+ * make a whole time — the moment it appears in the display above — there is
+ * nothing left for this field to collect, so focus is handed on. Choosing the
+ * half of the day afterwards hands it on again, because that finishes the time
+ * too.
+ *
+ * The half of the day is therefore chosen while typing rather than after: `p`
+ * or `a` from either number segment, or a 24-hour hour like `16`.
  */
 export default function TimeField({
   id,
@@ -57,22 +66,35 @@ export default function TimeField({
   value,
   error,
   onChange,
+  onComplete,
+  defaultMeridiem,
   autoFocus = false,
   ref,
 }) {
   const name = label.replace(/:$/, "");
-  const [parts, setParts] = useState(() => toParts(value));
+  const [parts, setParts] = useState(() => toParts(value, defaultMeridiem));
   const [published, setPublished] = useState(value);
   const hourRef = useRef(null);
   const minuteRef = useRef(null);
-  const meridiemRef = useRef(null);
+  /*
+    The segments as they stand right now, rather than as they stood when this
+    render began. Finishing a time moves focus out of the control inside the
+    same keystroke that changed it, and the blur that follows arrives before
+    React has re-rendered — so tidying up has to read this rather than a `parts`
+    that is already one edit behind.
+  */
+  const latestParts = useRef(parts);
 
   // Re-read the segments whenever the time changes to something this control
   // did not publish itself — a reset, for instance.
   if (value !== published) {
     setPublished(value);
-    setParts(toParts(value));
+    setParts(toParts(value, defaultMeridiem));
   }
+
+  useEffect(() => {
+    latestParts.current = parts;
+  }, [parts]);
 
   useEffect(() => {
     if (autoFocus) selectSegment(hourRef.current);
@@ -88,27 +110,38 @@ export default function TimeField({
 
   /** Apply an edit and publish the time it makes. */
   function commit(next) {
+    latestParts.current = next;
     setParts(next);
     const time = partsToTime(next);
     setPublished(time);
     onChange(time);
+    return time;
+  }
+
+  /**
+   * The segments now make a whole time, so this field is done and whoever owns
+   * the form decides where the user goes next.
+   */
+  function afterTimeEntered(time) {
+    if (time !== "") onComplete?.();
   }
 
   function handleHourChange(event) {
     const typed = typeHour(event.target.value, parts.meridiem);
     commit({ ...parts, hour: typed.hour, meridiem: typed.meridiem });
+    // The hour is only ever followed by the minute, however it was typed.
     if (typed.done) selectSegment(minuteRef.current);
-  }
-
-  /** Land on the half of the day that is currently chosen, ready to change it. */
-  function focusMeridiem() {
-    meridiemRef.current?.querySelector('[aria-pressed="true"]')?.focus();
   }
 
   function handleMinuteChange(event) {
     const typed = typeMinute(event.target.value);
-    commit({ ...parts, minute: typed.minute });
-    if (typed.done) focusMeridiem();
+    const time = commit({ ...parts, minute: typed.minute });
+    if (typed.done) afterTimeEntered(time);
+  }
+
+  /** Settle the half of the day, and move on if that finished the time. */
+  function chooseMeridiem(meridiem) {
+    afterTimeEntered(commit({ ...parts, meridiem }));
   }
 
   /** Keys both number segments answer to. Returns true when one was used. */
@@ -116,7 +149,7 @@ export default function TimeField({
     const meridiem = meridiemFromKey(event.key);
     if (meridiem !== null) {
       event.preventDefault();
-      commit({ ...parts, meridiem });
+      chooseMeridiem(meridiem);
       return true;
     }
 
@@ -154,28 +187,31 @@ export default function TimeField({
     const meridiem = meridiemFromKey(event.key);
     if (meridiem !== null) {
       event.preventDefault();
-      commit({ ...parts, meridiem });
+      chooseMeridiem(meridiem);
       return;
     }
     if (stepFromKey(event.key) !== 0) {
       event.preventDefault();
-      commit({ ...parts, meridiem: otherMeridiem(parts.meridiem) });
+      chooseMeridiem(otherMeridiem(parts.meridiem));
     }
   }
 
   function setNow() {
     const now = new Date();
-    commit(toParts(createTime(now.getHours(), now.getMinutes())));
+    afterTimeEntered(
+      commit(toParts(createTime(now.getHours(), now.getMinutes()))),
+    );
   }
 
   /** Tidy half-typed segments, but only once the user has really left. */
   function handleBlur(event) {
     if (event.currentTarget.contains(event.relatedTarget)) return;
-    const tidied = normalizeParts(parts);
+    const current = latestParts.current;
+    const tidied = normalizeParts(current);
     if (
-      tidied.hour !== parts.hour ||
-      tidied.minute !== parts.minute ||
-      tidied.meridiem !== parts.meridiem
+      tidied.hour !== current.hour ||
+      tidied.minute !== current.minute ||
+      tidied.meridiem !== current.meridiem
     ) {
       commit(tidied);
     }
@@ -231,7 +267,6 @@ export default function TimeField({
           onKeyDown={handleMinuteKeyDown}
         />
         <div
-          ref={meridiemRef}
           className='wagez-meridiem'
           role='group'
           aria-label={`${name} AM or PM`}
@@ -242,7 +277,7 @@ export default function TimeField({
               type='button'
               aria-label={`${name} ${meridiem}`}
               aria-pressed={parts.meridiem === meridiem}
-              onClick={() => commit({ ...parts, meridiem })}
+              onClick={() => chooseMeridiem(meridiem)}
               onKeyDown={handleMeridiemKeyDown}
             >
               {meridiem}
@@ -259,8 +294,8 @@ export default function TimeField({
             type='button'
             className='wagez-chip'
             aria-label={`${name} ${Number(minute)} minutes`}
-            aria-pressed={parts.minute === minute}
-            onClick={() => commit({ ...parts, minute })}
+            // aria-pressed={parts.minute === minute}
+            onClick={() => afterTimeEntered(commit({ ...parts, minute }))}
           >
             :{minute}
           </button>
