@@ -1,0 +1,134 @@
+import { useEffect, useRef, useState } from "react";
+
+import {
+  createSavedShift,
+  duplicateDraft,
+  shiftDraft,
+  updateSavedShift,
+} from "@/lib/shifts/savedShift";
+
+import DateField from "@/components/calculator/DateField";
+import RateField from "@/components/calculator/RateField";
+import TimeField from "@/components/calculator/TimeField";
+
+/** Editing a shift that is already in the week, or copying it into a new one. */
+export const EDIT = "edit";
+export const DUPLICATE = "duplicate";
+
+const NO_ERRORS = {};
+
+const TITLES = { [EDIT]: "Edit shift", [DUPLICATE]: "Duplicate shift" };
+
+/**
+ * A saved shift, open for changes.
+ *
+ * The same controls the calculator is entered with, so there is only one way to
+ * type a time in Wagez. What the two modes differ in is only what becomes of
+ * the values: editing keeps the shift it started from, id and all, while
+ * duplicating leaves that shift exactly where it was and makes a new one.
+ *
+ * Nothing is written until the form is saved — a cancelled edit changes
+ * nothing, and a cancelled duplicate creates nothing.
+ *
+ * The pay rate is shown rather than hidden behind a word, unlike the
+ * calculator: this is a shift somebody is coming back to fix, and a rate that
+ * needs correcting should not have to be found first. Left empty it means what
+ * it always means — hours, and no money.
+ */
+export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
+  const [draft, setDraft] = useState(() =>
+    mode === DUPLICATE ? duplicateDraft(shift) : shiftDraft(shift),
+  );
+  const [errors, setErrors] = useState(NO_ERRORS);
+  const formRef = useRef(null);
+
+  // A card near the bottom of the week opens into a form taller than the room
+  // left under it, so bring the whole of it into view — including the way out.
+  useEffect(() => {
+    formRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, []);
+
+  // Both views stay mounted, so every field here needs an id of its own.
+  const field = (name) => `shift-${shift.id}-${name}`;
+
+  function updateDraft(name, value) {
+    setDraft((current) => ({ ...current, [name]: value }));
+    // Stop pointing at a mistake the user is already fixing.
+    setErrors(NO_ERRORS);
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const saved =
+      mode === DUPLICATE
+        ? createSavedShift(draft)
+        : updateSavedShift(shift, draft);
+
+    if (!saved.ok) {
+      setErrors(saved.errors);
+      return;
+    }
+    onSave(saved.shift);
+  }
+
+  /** Escape is the way out of a form nobody meant to open. */
+  function handleKeyDown(event) {
+    if (event.key === "Escape") onCancel();
+  }
+
+  return (
+    <form
+      ref={formRef}
+      className='wagez-shift-form'
+      onSubmit={handleSubmit}
+      onKeyDown={handleKeyDown}
+      noValidate
+    >
+      <h3 className='wagez-shift-form-title'>{TITLES[mode]}</h3>
+
+      <DateField
+        id={field("date")}
+        label='Day:'
+        value={draft.date}
+        error={errors.date}
+        onChange={(value) => updateDraft("date", value)}
+        autoFocus
+      />
+      <TimeField
+        id={field("start")}
+        label='Start:'
+        value={draft.startTime}
+        error={errors.startTime}
+        onChange={(value) => updateDraft("startTime", value)}
+      />
+      <TimeField
+        id={field("end")}
+        label='Stop:'
+        value={draft.endTime}
+        error={errors.endTime}
+        onChange={(value) => updateDraft("endTime", value)}
+      />
+      <RateField
+        id={field("rate")}
+        label='Pay Rate:'
+        value={draft.hourlyRate}
+        error={errors.hourlyRate}
+        onChange={(value) => updateDraft("hourlyRate", value)}
+      />
+
+      <div className='wagez-shift-form-actions'>
+        <button type='submit' className='wagez-do-math'>
+          Save
+        </button>
+        <button
+          type='button'
+          className='wagez-quiet-button shrink-0'
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}

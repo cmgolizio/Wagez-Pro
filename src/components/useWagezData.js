@@ -32,10 +32,34 @@ export default function useWagezData() {
     }));
   }, []);
 
+  /**
+   * Replace a shift with an edited version of itself, found by its id — the
+   * week is drawn in the order it was worked, never the order it is stored in,
+   * so where a shift sits in this array means nothing.
+   */
+  const updateShift = useCallback((shift) => {
+    updateWagezData((current) => ({
+      ...current,
+      shifts: current.shifts.map((entry) =>
+        entry.id === shift.id ? shift : entry,
+      ),
+    }));
+  }, []);
+
+  /** Take a shift out of the week for good. */
+  const removeShift = useCallback((id) => {
+    updateWagezData((current) => ({
+      ...current,
+      shifts: current.shifts.filter((entry) => entry.id !== id),
+    }));
+  }, []);
+
   return {
     ready: data.ready,
     shifts: data.shifts,
     settings: data.settings,
     addShift,
+    updateShift,
+    removeShift,
   };
 }

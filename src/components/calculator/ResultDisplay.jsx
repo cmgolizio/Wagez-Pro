@@ -1,5 +1,10 @@
 import { formatCents } from "@/lib/formatters/currency";
+import { formatShiftDay } from "@/lib/formatters/date";
 import { formatDuration } from "@/lib/formatters/duration";
+
+import DayStrip from "./DayStrip";
+
+const DAY_STRIP = "saved-day-strip";
 
 /**
  * The bottom region: the last thing "Do Math." produced.
@@ -24,17 +29,24 @@ import { formatDuration } from "@/lib/formatters/duration";
  *
  * "Add to week" lives here because saving is something you do to an answer, and
  * only to one that still matches the shift on screen. Calculating never saves
- * anything on its own.
+ * anything on its own — but once the user does ask, that is the whole of it:
+ * one press, and Wagez works out the day rather than stopping to ask for it.
+ * The day it settled on is then the largest thing in the confirmation and is
+ * itself the way to change it, with the way back out beside it. Nothing here
+ * asks a question, because nothing here is worth interrupting somebody for:
+ * saving is undoable, so it is simply done.
  */
 export default function ResultDisplay({
   result,
   stale = false,
   steppedBack = false,
   onRecall,
-  saved = false,
-  savedDay = null,
-  hint = null,
+  savedDate = null,
+  dayOpen = false,
   onAddToWeek,
+  onToggleDay,
+  onChangeDay,
+  onUndo,
   onShowWeek,
 }) {
   /** A press on one of the buttons in here is not a press on the answer. */
@@ -88,18 +100,7 @@ export default function ResultDisplay({
           {/* A stale answer is not this shift, so there is nothing to save. */}
           {stale ? null : (
             <div className='wagez-result-actions'>
-              {saved ? (
-                <p className='wagez-result-note'>
-                  Added to {savedDay}.{" "}
-                  <button
-                    type='button'
-                    className='wagez-inline-button'
-                    onClick={onShowWeek}
-                  >
-                    See week
-                  </button>
-                </p>
-              ) : (
+              {savedDate === null ? (
                 <button
                   type='button'
                   className='wagez-quiet-button'
@@ -107,9 +108,47 @@ export default function ResultDisplay({
                 >
                   + Add to week
                 </button>
-              )}
-              {hint === null ? null : (
-                <p className='wagez-result-note'>{hint}</p>
+              ) : (
+                <>
+                  <p className='wagez-saved'>
+                    <span className='wagez-caption'>Added to</span>
+                    <button
+                      type='button'
+                      className='wagez-saved-day'
+                      aria-expanded={dayOpen}
+                      aria-controls={dayOpen ? DAY_STRIP : undefined}
+                      onClick={onToggleDay}
+                    >
+                      {formatShiftDay(savedDate)}
+                    </button>
+                  </p>
+
+                  {dayOpen ? (
+                    <DayStrip
+                      id={DAY_STRIP}
+                      value={savedDate}
+                      onChange={onChangeDay}
+                    />
+                  ) : null}
+
+                  <p className='wagez-result-note'>
+                    <button
+                      type='button'
+                      className='wagez-inline-button'
+                      onClick={onUndo}
+                    >
+                      Undo
+                    </button>
+                    <span aria-hidden='true'> · </span>
+                    <button
+                      type='button'
+                      className='wagez-inline-button'
+                      onClick={onShowWeek}
+                    >
+                      See week
+                    </button>
+                  </p>
+                </>
               )}
             </div>
           )}

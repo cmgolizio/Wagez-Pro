@@ -23,7 +23,8 @@ const VIEWS = [
  * shift someone is halfway through entering.
  */
 export default function WagezApp() {
-  const { ready, shifts, settings, addShift } = useWagezData();
+  const { ready, shifts, settings, addShift, updateShift, removeShift } =
+    useWagezData();
   const [view, setView] = useState(SHIFT);
 
   return (
@@ -36,7 +37,10 @@ export default function WagezApp() {
       <div className={view === SHIFT ? "contents" : "hidden"}>
         <CalculatorView
           active={view === SHIFT}
+          shifts={shifts}
           onSave={addShift}
+          onUpdate={updateShift}
+          onDelete={removeShift}
           onShowWeek={() => setView(WEEK)}
         />
       </div>
@@ -45,6 +49,9 @@ export default function WagezApp() {
           shifts={shifts}
           weekStartsOn={settings.weekStartsOn}
           ready={ready}
+          onAdd={addShift}
+          onUpdate={updateShift}
+          onDelete={removeShift}
         />
       </div>
     </main>

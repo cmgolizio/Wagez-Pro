@@ -8,6 +8,9 @@
  *
  * Closed, the visible name is the accessible name. Open there is no text to
  * read, so the X carries one of its own.
+ *
+ * Open, it belongs beside the field it revealed rather than off on its own —
+ * an X with nothing next to it is a mark, not a control.
  */
 export default function RevealToggle({
   id,
@@ -16,9 +19,11 @@ export default function RevealToggle({
   open,
   controls,
   onToggle,
+  ref,
 }) {
   return (
     <button
+      ref={ref}
       type='button'
       id={id}
       className='wagez-reveal'

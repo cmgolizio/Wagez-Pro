@@ -1,15 +1,13 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { PM } from "@/lib/calculations/time";
 
 import RevealToggle from "@/components/ui/RevealToggle";
 
-import DateField from "./DateField";
 import RateField from "./RateField";
 import TimeField from "./TimeField";
 
 const RATE_FIELD = "hourly-rate";
-const DATE_FIELD = "shift-date";
 
 /**
  * The center panel: the whole shift, editable, plus "Do Math."
@@ -18,8 +16,10 @@ const DATE_FIELD = "shift-date";
  * calculating is a single call up to the parent.
  *
  * Only the two times are ever on screen to begin with, because only the two
- * times are required. A pay rate and a day are each one word away, and each
- * word takes its field away again when it is pressed a second time.
+ * times are required. A pay rate is one word away, and the same word takes it
+ * away again when it is pressed a second time. Nothing else belongs here: the
+ * day a shift was worked changes nothing about the answer, so it is settled
+ * where it matters, at the point the shift is saved.
  *
  * Focus runs straight down that path: the start hour has it on arrival, and
  * each time hands it on the moment it is finished, so a whole shift can be
@@ -41,10 +41,8 @@ export default function ShiftEditor({
   errors,
   steppedBack = false,
   showRate,
-  showDate,
   onChange,
   onToggleRate,
-  onToggleDate,
   onCalculate,
   onReset,
   onRecall,
@@ -52,7 +50,27 @@ export default function ShiftEditor({
   const startRef = useRef(null);
   const endRef = useRef(null);
   const rateRef = useRef(null);
+  const revealRef = useRef(null);
   const doMathRef = useRef(null);
+  const rateWasOpen = useRef(showRate);
+
+  /*
+    Asking for a pay rate and then having to go and find it would be two acts
+    where the user meant one, so the caret follows the field on and off screen:
+    into the rate when it appears, and back onto the word that offers it again
+    when it goes. Arrival is not a toggle, so nothing moves on first render.
+  */
+  useEffect(() => {
+    if (showRate === rateWasOpen.current) return;
+    rateWasOpen.current = showRate;
+
+    if (showRate) {
+      rateRef.current?.focus();
+      rateRef.current?.select?.();
+    } else {
+      revealRef.current?.focus();
+    }
+  }, [showRate]);
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -121,23 +139,21 @@ export default function ShiftEditor({
         defaultMeridiem={PM}
       />
 
-      {/* The optional half of a shift, kept to two words until it is wanted. */}
-      <div className='wagez-reveal-row'>
-        <RevealToggle
-          label='$/hour'
-          removeLabel='Remove the pay rate'
-          open={showRate}
-          controls={RATE_FIELD}
-          onToggle={onToggleRate}
-        />
-        <RevealToggle
-          label='Add day'
-          removeLabel='Remove the day'
-          open={showDate}
-          controls={DATE_FIELD}
-          onToggle={onToggleDate}
-        />
-      </div>
+      {/* The optional half of a shift, kept to one word until it is wanted.
+          Once it is, the word has been replaced by the field it revealed, so
+          the way back out goes with that field rather than standing alone. */}
+      {showRate ? null : (
+        <div className='wagez-reveal-row'>
+          <RevealToggle
+            ref={revealRef}
+            label='$/hour'
+            removeLabel='Remove the pay rate'
+            open={false}
+            controls={RATE_FIELD}
+            onToggle={onToggleRate}
+          />
+        </div>
+      )}
 
       {showRate ? (
         <RateField
@@ -147,17 +163,16 @@ export default function ShiftEditor({
           value={draft.hourlyRate}
           error={errors.hourlyRate}
           onChange={(value) => onChange("hourlyRate", value)}
-        />
-      ) : null}
-
-      {showDate ? (
-        <DateField
-          id={DATE_FIELD}
-          label='Day:'
-          value={draft.date}
-          error={errors.date}
-          onChange={(value) => onChange("date", value)}
-          autoFocus
+          action={
+            <RevealToggle
+              ref={revealRef}
+              label='$/hour'
+              removeLabel='Remove the pay rate'
+              open
+              controls={RATE_FIELD}
+              onToggle={onToggleRate}
+            />
+          }
         />
       ) : null}
 

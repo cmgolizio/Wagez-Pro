@@ -1,8 +1,15 @@
+import { useEffect, useRef } from "react";
+
 import { formatCents } from "@/lib/formatters/currency";
 import { formatShiftDay } from "@/lib/formatters/date";
 import { formatDurationCompact } from "@/lib/formatters/duration";
 import { formatTime } from "@/lib/formatters/time";
 import { deriveShift } from "@/lib/shifts/savedShift";
+
+import SavedShiftForm, { DUPLICATE, EDIT } from "./SavedShiftForm";
+
+/** Asking to delete a shift, which is the one thing that needs asking. */
+export const DELETE = "delete";
 
 /**
  * One saved shift, as a week reads it: the day, the hours it covered, how long
@@ -10,15 +17,63 @@ import { deriveShift } from "@/lib/shifts/savedShift";
  *
  * Every number here is derived from the shift's own start, end, rate and break
  * as it is drawn, so a card can never show a total that has drifted away from
- * the shift it belongs to.
+ * the shift it belongs to. That is also why an edit needs nothing more than
+ * changing those values: the card, and the week under it, redraw themselves.
+ *
+ * `mode` is what this card is currently being asked to do — the week lets only
+ * one card be open at a time, so an editor is never lost behind another. The
+ * card gives focus back to the action that opened it when it closes, so the
+ * keyboard ends up where it started.
  */
-export default function SavedShiftCard({ shift }) {
+export default function SavedShiftCard({
+  shift,
+  mode = null,
+  onOpen,
+  onClose,
+  onSave,
+  onDelete,
+}) {
+  const actionsRef = useRef(null);
+  const cancelRef = useRef(null);
+  // Which action the card was last opened by, so closing can hand focus back.
+  const openedBy = useRef(null);
+
+  useEffect(() => {
+    if (mode === DELETE) {
+      // Deleting is not undoable, so the way out is what the keyboard lands on.
+      cancelRef.current?.focus();
+    } else if (mode === null && openedBy.current !== null) {
+      actionsRef.current
+        ?.querySelector(`[data-action="${openedBy.current}"]`)
+        ?.focus();
+    }
+    openedBy.current = mode;
+  }, [mode]);
+
   const derived = deriveShift(shift);
   if (derived === null) return null;
 
+  const day = formatShiftDay(shift.date);
+  // Every card offers the same three words, so each says which shift it means.
+  const name = `${day}, ${formatTime(shift.startTime)}`;
+  const questionId = `shift-${shift.id}-confirm`;
+
+  if (mode === EDIT || mode === DUPLICATE) {
+    return (
+      <li className='wagez-shift-card'>
+        <SavedShiftForm
+          shift={shift}
+          mode={mode}
+          onSave={onSave}
+          onCancel={onClose}
+        />
+      </li>
+    );
+  }
+
   return (
     <li className='wagez-shift-card'>
-      <p className='wagez-shift-day'>{formatShiftDay(shift.date)}</p>
+      <p className='wagez-shift-day'>{day}</p>
       <p className='wagez-shift-times'>
         {formatTime(shift.startTime)} → {formatTime(shift.endTime)}
         {derived.crossesMidnight ? (
@@ -35,6 +90,69 @@ export default function SavedShiftCard({ shift }) {
           </span>
         )}
       </p>
+
+      {mode === DELETE ? (
+        <div className='wagez-shift-confirm'>
+          <p className='wagez-shift-question' id={questionId}>
+            Delete this shift?
+          </p>
+          {/* The way out comes first: it is where the keyboard is put, so the
+              answer the user came for is the very next thing they reach. The
+              question names the pair, so it is read out with whichever of the
+              two the user lands on. */}
+          <div
+            className='wagez-shift-actions'
+            role='group'
+            aria-labelledby={questionId}
+          >
+            <button
+              ref={cancelRef}
+              type='button'
+              className='wagez-quiet-button'
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type='button'
+              className='wagez-quiet-button wagez-danger'
+              onClick={onDelete}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div ref={actionsRef} className='wagez-shift-actions'>
+          <button
+            type='button'
+            className='wagez-quiet-button'
+            data-action={EDIT}
+            aria-label={`Edit ${name}`}
+            onClick={() => onOpen(EDIT)}
+          >
+            Edit
+          </button>
+          <button
+            type='button'
+            className='wagez-quiet-button'
+            data-action={DUPLICATE}
+            aria-label={`Duplicate ${name}`}
+            onClick={() => onOpen(DUPLICATE)}
+          >
+            Duplicate
+          </button>
+          <button
+            type='button'
+            className='wagez-quiet-button'
+            data-action={DELETE}
+            aria-label={`Delete ${name}`}
+            onClick={() => onOpen(DELETE)}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </li>
   );
 }

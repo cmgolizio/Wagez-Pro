@@ -142,8 +142,8 @@ summary {
 
 /*
   Emphasis. Before a calculation the editor is the screen; afterwards the money
-  is, and the inputs step back. Hovering the stepped-back half brings it part of
-  the way forward, and clicking it hands the screen back.
+  is, and the inputs step back. Clicking the stepped-back half hands the screen
+  back to it.
 */
 .wagez-entered,
 .wagez-result {
@@ -392,6 +392,14 @@ summary {
   pointer-events: none;
 }
 
+/* A field's name, and any control belonging to that field, on one line. */
+.wagez-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .wagez-field-label {
   font-size: calc(0.75rem * var(--wagez-scale));
   font-weight: 800;
@@ -547,15 +555,6 @@ summary {
 
 .wagez-chip:hover {
   background-color: rgba(255, 255, 255, 0.94);
-}
-
-.wagez-chip[aria-pressed="true"] {
-  background-color: var(--wagez-ink);
-  color: #ffffff;
-}
-
-.wagez-chip[aria-pressed="true"]:hover {
-  background-color: #33333f;
 }
 
 .wagez-chip:focus-visible {
@@ -789,6 +788,116 @@ summary {
   color: var(--wagez-ink);
 }
 
+/*
+  What became of the answer: the day it was saved to.
+
+  Wagez never asks which day — it works it out and says so, in the same bold
+  hand the values above are set in. The day is itself the control that changes
+  it, so there is nothing to hunt for and nothing to read twice.
+*/
+.wagez-saved {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(0.2rem * var(--wagez-scale));
+}
+
+.wagez-saved-day {
+  /* Sized off the fit alone: a target stays a target whichever region has the
+     screen, and only gives way when the screen itself runs out of room. */
+  min-height: calc(2.75rem * var(--wagez-fit));
+  padding-inline: calc(0.75rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-control);
+  background-color: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+  font-size: calc(1.125rem * var(--wagez-scale));
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--wagez-ink);
+  transition: background-color 140ms ease;
+}
+
+.wagez-saved-day:hover {
+  background-color: rgba(255, 255, 255, 0.94);
+}
+
+.wagez-saved-day[aria-expanded="true"] {
+  background-color: var(--wagez-ink);
+  color: #ffffff;
+}
+
+.wagez-saved-day[aria-expanded="true"]:hover {
+  background-color: #33333f;
+}
+
+.wagez-saved-day:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
+/*
+  The last seven days, one press each.
+
+  The same row of one-tap values as the quick minutes above it, seven wide:
+  three letters is all a chip needs when each weekday happens once in a week.
+  A calendar sits under them for the rarer shift that is older than that.
+*/
+.wagez-day-strip {
+  display: flex;
+  flex-direction: column;
+  gap: calc(0.3rem * var(--wagez-scale));
+  width: 100%;
+  max-width: 26rem;
+  margin-inline: auto;
+  margin-top: calc(0.35rem * var(--wagez-scale));
+}
+
+.wagez-day-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: calc(0.2rem * var(--wagez-scale));
+}
+
+.wagez-day {
+  min-height: calc(2.75rem * var(--wagez-fit));
+  border-radius: var(--wagez-radius-control);
+  background-color: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+  font-size: calc(0.8125rem * var(--wagez-scale));
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--wagez-ink);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.wagez-day:hover {
+  background-color: rgba(255, 255, 255, 0.94);
+}
+
+.wagez-day[aria-pressed="true"] {
+  background-color: var(--wagez-ink);
+  color: #ffffff;
+}
+
+.wagez-day[aria-pressed="true"]:hover {
+  background-color: #33333f;
+}
+
+.wagez-day:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
+/* The calendar underneath: quieter than the days, because it is the rarer way. */
+.wagez-day-date {
+  min-height: calc(2.75rem * var(--wagez-fit));
+}
+
 .wagez-inline-button {
   font-weight: 800;
   color: var(--wagez-action);
@@ -946,6 +1055,97 @@ summary {
   font-size: clamp(1.15rem, 5vw, 1.5rem);
   font-weight: 800;
   color: var(--wagez-money);
+}
+
+/*
+  Keeping a week: edit, duplicate, delete.
+
+  Three words under the shift they belong to, quiet enough that the shift stays
+  the loudest thing in the card and large enough to hit with a thumb. They sit
+  to the right, where a card is read out to, and never move when one of them is
+  pressed.
+*/
+.wagez-shift-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.15rem;
+  margin-top: 0.3rem;
+  margin-right: -0.4rem;
+}
+
+/*
+  Quieter than the shift above them, and still well clear of the contrast floor
+  against every stop of the gradient — the ink's own colour at two thirds
+  strength rather than a flat grey, so the words sit in the card's light.
+*/
+.wagez-shift-actions .wagez-quiet-button {
+  padding-inline: 0.6rem;
+  font-size: 0.9375rem;
+  color: rgba(22, 22, 29, 0.66);
+}
+
+.wagez-shift-actions .wagez-quiet-button:hover {
+  color: var(--wagez-ink);
+}
+
+/* Deleting is the one thing that asks first, and the only red in a card. */
+.wagez-shift-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.wagez-shift-confirm .wagez-shift-actions {
+  margin-top: 0;
+}
+
+.wagez-shift-question {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--wagez-ink);
+}
+
+.wagez-quiet-button.wagez-danger {
+  color: var(--wagez-alert);
+}
+
+.wagez-shift-actions .wagez-quiet-button.wagez-danger:hover {
+  background-color: rgba(179, 38, 30, 0.1);
+  color: var(--wagez-alert);
+}
+
+/*
+  A shift open for changes, in the card it already occupies: the same controls
+  the calculator is entered with, at the size a card gives them.
+*/
+.wagez-shift-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.wagez-shift-form-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(22, 22, 29, 0.66);
+}
+
+.wagez-shift-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.wagez-shift-form .wagez-do-math {
+  min-height: 3rem;
+  font-size: 1.125rem;
 }
 
 /*

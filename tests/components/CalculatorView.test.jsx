@@ -1,19 +1,29 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import WagezApp from "@/components/WagezApp";
+import { addDays, todayIsoDate } from "@/lib/dates/isoDate";
+import { formatShiftDay } from "@/lib/formatters/date";
+import { suggestShiftDate } from "@/lib/shifts/savedShift";
 
 import {
+  RATE_LABEL,
+  addToWeek,
   cleanupWagez,
   currentValue,
   displayedLabels,
   doMath,
   enterShift,
+  revealToggle,
+  savedDay,
+  setDay,
   setRate,
   setTime,
+  showDayStrip,
   showRate,
+  undoSave,
 } from "../helpers/wagez";
 
 afterEach(cleanupWagez);
@@ -366,7 +376,7 @@ describe("the display grows with what has been entered", () => {
     ).toEqual(["Start:", "Stop:"]);
 
     showRate();
-    expect(screen.getByLabelText(/pay rate/i)).not.toBeNull();
+    expect(screen.getByLabelText(RATE_LABEL)).not.toBeNull();
     expect(
       [...document.querySelectorAll(".wagez-field-label")].map(
         (el) => el.textContent,
@@ -410,22 +420,6 @@ describe("the screen hands itself between the inputs and the answer", () => {
 
     expect(screen.getByRole("alert")).not.toBeNull();
     expect(stage().stage).toBe("editing");
-  });
-
-  it("brings the inputs part of the way back on hover, from either region", () => {
-    render(<WagezApp />);
-    enterShift({ start: "09:00", end: "17:00", rate: "20" });
-    doMath();
-
-    fireEvent.mouseEnter(editor());
-    expect(stage()).toEqual({ stage: "result", peek: "true" });
-    fireEvent.mouseLeave(editor());
-    expect(stage().peek).toBeUndefined();
-
-    fireEvent.mouseEnter(entered());
-    expect(stage()).toEqual({ stage: "result", peek: "true" });
-    fireEvent.mouseLeave(entered());
-    expect(stage().peek).toBeUndefined();
   });
 
   it("hands the screen back when the shrunken editor is clicked", () => {
@@ -527,14 +521,11 @@ describe("typing a whole shift without touching the mouse", () => {
     type(document.activeElement, "4");
     expect(screen.getByLabelText("Start minutes")).toBe(document.activeElement);
 
-    // A whole time still has the half of the day left to decide.
-    type(document.activeElement, "15");
-    expect(screen.getByRole("button", { name: "Start AM" })).toBe(
-      document.activeElement,
-    );
-
-    // Deciding it finishes the start time, so the stop time takes over.
+    // The half of the day is chosen while typing rather than after it.
     fireEvent.keyDown(document.activeElement, { key: "p" });
+
+    // The minute finishes the start time, so the stop time takes over.
+    type(document.activeElement, "15");
     expect(currentValue("Start:")).toBe("4:15 PM");
     expect(screen.getByLabelText("Stop hour")).toBe(document.activeElement);
   });
@@ -553,12 +544,12 @@ describe("typing a whole shift without touching the mouse", () => {
   it("lands on Do Math. once both times are in", () => {
     render(<WagezApp />);
     type(screen.getByLabelText("Start hour"), "9");
-    type(document.activeElement, "00");
     fireEvent.keyDown(document.activeElement, { key: "a" });
+    type(document.activeElement, "00");
 
     type(screen.getByLabelText("Stop hour"), "5");
-    type(document.activeElement, "30");
     fireEvent.keyDown(document.activeElement, { key: "p" });
+    type(document.activeElement, "30");
 
     // Nothing left to type: the answer is under the return key.
     expect(screen.getByRole("button", { name: "Do Math." })).toBe(
@@ -575,10 +566,10 @@ describe("typing a whole shift without touching the mouse", () => {
 
     setTime("Start", "09:00");
     type(screen.getByLabelText("Stop hour"), "5");
-    type(document.activeElement, "30");
     fireEvent.keyDown(document.activeElement, { key: "p" });
+    type(document.activeElement, "30");
 
-    expect(screen.getByLabelText(/pay rate/i)).toBe(document.activeElement);
+    expect(screen.getByLabelText(RATE_LABEL)).toBe(document.activeElement);
   });
 
   it("passes a pay rate that is already filled in", () => {
@@ -587,8 +578,8 @@ describe("typing a whole shift without touching the mouse", () => {
 
     setTime("Start", "09:00");
     type(screen.getByLabelText("Stop hour"), "5");
-    type(document.activeElement, "30");
     fireEvent.keyDown(document.activeElement, { key: "p" });
+    type(document.activeElement, "30");
 
     expect(screen.getByRole("button", { name: "Do Math." })).toBe(
       document.activeElement,
@@ -608,7 +599,7 @@ describe("typing a whole shift without touching the mouse", () => {
 });
 
 describe("the pay rate stays out of the way until it is wanted", () => {
-  const toggle = () => screen.getByRole("button", { name: "$/hour" });
+  const toggle = () => revealToggle("hourly-rate");
 
   /** The X drawn across the toggle when the field below it is showing. */
   const crossedOut = () => document.querySelector(".wagez-reveal-x");
@@ -616,16 +607,18 @@ describe("the pay rate stays out of the way until it is wanted", () => {
   it("shows nothing but a word until that word is pressed", () => {
     render(<WagezApp />);
 
-    expect(screen.queryByLabelText(/pay rate/i)).toBeNull();
+    expect(screen.queryByLabelText(RATE_LABEL)).toBeNull();
     expect(toggle().getAttribute("aria-expanded")).toBe("false");
     expect(crossedOut()).toBeNull();
 
     fireEvent.click(toggle());
 
-    expect(screen.getByLabelText(/pay rate/i)).not.toBeNull();
+    expect(screen.getByLabelText(RATE_LABEL)).not.toBeNull();
     expect(toggle().getAttribute("aria-expanded")).toBe("true");
-    // Same word, now crossed out and marked as the way back.
-    expect(toggle().textContent).toContain("$/hour");
+    // The field below now carries the name, so the word gives way to an X
+    // whose only job is to take the field away again.
+    expect(toggle().textContent).toBe("");
+    expect(toggle().getAttribute("aria-label")).toBe("Remove the pay rate");
     expect(toggle().dataset.open).toBe("true");
     expect(crossedOut()).not.toBeNull();
   });
@@ -634,7 +627,7 @@ describe("the pay rate stays out of the way until it is wanted", () => {
     render(<WagezApp />);
     fireEvent.click(toggle());
 
-    const field = screen.getByLabelText(/pay rate/i);
+    const field = screen.getByLabelText(RATE_LABEL);
 
     expect(
       toggle().compareDocumentPosition(field) &
@@ -651,7 +644,7 @@ describe("the pay rate stays out of the way until it is wanted", () => {
 
     // Gone from the panel, gone from the display, and gone from the answer:
     // a rate nobody can see must not quietly go on earning money.
-    expect(screen.queryByLabelText(/pay rate/i)).toBeNull();
+    expect(screen.queryByLabelText(RATE_LABEL)).toBeNull();
     expect(displayedLabels()).toEqual(["Start:", "Stop:"]);
 
     doMath();
@@ -664,43 +657,142 @@ describe("the pay rate stays out of the way until it is wanted", () => {
     fireEvent.click(toggle());
 
     expect(toggle().getAttribute("aria-controls")).toBe(
-      screen.getByLabelText(/pay rate/i).id,
+      screen.getByLabelText(RATE_LABEL).id,
     );
   });
 });
 
-describe("the day is optional in the same way", () => {
-  const toggle = () => screen.getByRole("button", { name: "Add day" });
-
-  it("opens on today, and says so above", () => {
+describe("saving the answer into the week", () => {
+  it("keeps the calculator free of any day at all", () => {
     render(<WagezApp />);
+    enterShift({ start: "09:00", end: "17:00", rate: "20" });
+
+    // Three things are entered, and a day is not one of them: the same hours
+    // pay the same money whichever day they were worked.
+    expect(displayedLabels()).toEqual(["Start:", "Stop:", "Pay Rate:"]);
     expect(screen.queryByLabelText("Day")).toBeNull();
-
-    fireEvent.click(toggle());
-
-    const today = screen.getByLabelText("Day");
-    expect(today.value).not.toBe("");
-    expect(displayedLabels()).toEqual(["Day:"]);
-    expect(today).toBe(document.activeElement);
+    expect(screen.queryByRole("button", { name: /add day/i })).toBeNull();
   });
 
-  it("takes the day away again when pressed a second time", () => {
-    render(<WagezApp />);
-    fireEvent.click(toggle());
-    fireEvent.click(toggle());
-
-    expect(screen.queryByLabelText("Day")).toBeNull();
-    expect(displayedLabels()).toEqual([]);
-  });
-
-  it("does not stale a standing answer, because it changes none of it", () => {
+  it("saves on one press, and says which day it went to", () => {
     render(<WagezApp />);
     enterShift({ start: "09:00", end: "17:00", rate: "20" });
     doMath();
 
-    fireEvent.click(toggle());
+    // Calculating saves nothing.
+    expect(savedDay()).toBeNull();
 
-    expect(screen.queryByText(STALE_NOTE)).toBeNull();
-    expect(screen.getByText("$160.00")).not.toBeNull();
+    addToWeek();
+
+    // One press. No question, and nothing left to fill in.
+    expect(savedDay().textContent).toBe(
+      formatShiftDay(suggestShiftDate({ startTime: "09:00" })),
+    );
+    expect(screen.queryByRole("button", { name: "+ Add to week" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Undo" })).not.toBeNull();
+  });
+
+  it("offers the last seven days, and the shift moves to the one pressed", () => {
+    render(<WagezApp />);
+    enterShift({ start: "09:00", end: "17:00", rate: "20" });
+    doMath();
+    addToWeek();
+
+    fireEvent.click(savedDay());
+    const strip = within(document.querySelector(".wagez-day-strip"));
+    const days = strip
+      .getAllByRole("button")
+      .map((button) => button.getAttribute("aria-label"));
+
+    expect(days).toHaveLength(7);
+    expect(days.at(-1)).toBe(formatShiftDay(todayIsoDate()));
+    expect(days[0]).toBe(formatShiftDay(addDays(todayIsoDate(), -6)));
+
+    // The day pressed becomes the day it is saved to.
+    const wanted = addDays(todayIsoDate(), -2);
+    fireEvent.click(
+      strip.getByRole("button", { name: formatShiftDay(wanted) }),
+    );
+
+    expect(savedDay().textContent).toBe(formatShiftDay(wanted));
+  });
+
+  it("marks no day at all when the shift sits outside the last week", () => {
+    render(<WagezApp />);
+    enterShift({ start: "09:00", end: "17:00", rate: "20" });
+    doMath();
+    addToWeek();
+
+    const older = addDays(todayIsoDate(), -30);
+    setDay(older);
+    expect(savedDay().textContent).toBe(formatShiftDay(older));
+
+    // The strip is the last seven days; a shift from a month ago is on none of
+    // them, and the calendar underneath holds it instead.
+    showDayStrip();
+    const strip = within(document.querySelector(".wagez-day-strip"));
+    expect(
+      strip
+        .getAllByRole("button")
+        .some((day) => day.getAttribute("aria-pressed") === "true"),
+    ).toBe(false);
+    expect(screen.getByLabelText("Or pick a day").value).toBe(older);
+  });
+
+  it("closes the strip once a day is chosen", () => {
+    render(<WagezApp />);
+    enterShift({ start: "09:00", end: "17:00", rate: "20" });
+    doMath();
+    addToWeek();
+
+    fireEvent.click(savedDay());
+    expect(document.querySelector(".wagez-day-strip")).not.toBeNull();
+
+    setDay(addDays(todayIsoDate(), -3));
+    expect(document.querySelector(".wagez-day-strip")).toBeNull();
+  });
+
+  it("takes the whole thing back when Undo is pressed", () => {
+    render(<WagezApp />);
+    enterShift({ start: "09:00", end: "17:00", rate: "20" });
+    doMath();
+    addToWeek();
+
+    undoSave();
+
+    // Back to an unsaved answer, offering to save it again.
+    expect(savedDay()).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "+ Add to week" }),
+    ).not.toBeNull();
+  });
+
+  it("stops offering to undo once the shift on screen has moved on", () => {
+    render(<WagezApp />);
+    enterShift({ start: "09:00", end: "17:00", rate: "20" });
+    doMath();
+    addToWeek();
+    expect(savedDay()).not.toBeNull();
+
+    // The answer this confirmation belongs to is no longer the one on screen.
+    fireEvent.change(screen.getByLabelText("Stop minutes"), {
+      target: { value: "30" },
+    });
+
+    expect(savedDay()).toBeNull();
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(screen.getByText(STALE_NOTE)).not.toBeNull();
+  });
+
+  it("clears the confirmation on reset", () => {
+    render(<WagezApp />);
+    enterShift({ start: "09:00", end: "17:00", rate: "20" });
+    doMath();
+    addToWeek();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+
+    expect(savedDay()).toBeNull();
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
   });
 });

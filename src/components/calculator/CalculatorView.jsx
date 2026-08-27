@@ -4,9 +4,12 @@ import { useState } from "react";
 
 import { calculateShift } from "@/lib/calculations/shift";
 import { shiftSignature } from "@/lib/calculations/signature";
-import { todayIsoDate } from "@/lib/dates/isoDate";
-import { formatShiftDay } from "@/lib/formatters/date";
-import { createSavedShift } from "@/lib/shifts/savedShift";
+import { isIsoDate } from "@/lib/dates/isoDate";
+import {
+  createSavedShift,
+  suggestShiftDate,
+  updateSavedShift,
+} from "@/lib/shifts/savedShift";
 
 import CurrentInputDisplay, { currentValues } from "./CurrentInputDisplay";
 import ResultDisplay from "./ResultDisplay";
@@ -17,16 +20,17 @@ import useFitToViewport from "./useFitToViewport";
  * The shift the user is currently editing.
  *
  * Times are canonical `"HH:MM"` strings — the same representation the time
- * control speaks — the date is an ISO `"YYYY-MM-DD"` string, and the rate stays
- * raw text until a calculation turns it into cents. Kept deliberately separate
- * from the calculated result: editing the draft never recalculates anything.
+ * control speaks — and the rate stays raw text until a calculation turns it
+ * into cents. Kept deliberately separate from the calculated result: editing
+ * the draft never recalculates anything.
+ *
+ * There is no day in here. A day is not something the calculator needs — the
+ * same hours pay the same money whichever day they were worked — it is where a
+ * shift goes once it is saved, and that is where it is decided.
  */
-const EMPTY_DRAFT = { startTime: "", endTime: "", hourlyRate: "", date: "" };
+const EMPTY_DRAFT = { startTime: "", endTime: "", hourlyRate: "" };
 
 const NO_ERRORS = {};
-
-/** Shown when saving is waiting on the one thing a week needs: a day. */
-const PICK_A_DAY = "Which day was this? Then add it to your week.";
 
 /**
  * Which half of the screen is the headline.
@@ -40,33 +44,37 @@ const PICK_A_DAY = "Which day was this? Then add it to your week.";
 const EDITING = "editing";
 const RESULT = "result";
 
-/**
- * What a saved shift would be made of, as one comparable string.
- *
- * The calculation signature covers the numbers; the date is the one thing a
- * saved shift carries that the answer on screen does not. Together they are how
- * Wagez knows the shift in front of the user is still the one it just saved.
- */
-function saveKey(input) {
-  return `${input.date}|${shiftSignature(input)}`;
-}
-
-export default function CalculatorView({ active = true, onSave, onShowWeek }) {
+export default function CalculatorView({
+  active = true,
+  shifts = [],
+  onSave,
+  onUpdate,
+  onDelete,
+  onShowWeek,
+}) {
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   // The last thing "Do Math." produced, plus the signature of the inputs it
   // was made from. Holding both together is what lets Wagez notice that the
   // draft has moved on without ever recalculating behind the user's back.
   const [calculation, setCalculation] = useState(null);
   const [stage, setStage] = useState(EDITING);
-  // The optional half of a shift. Both start out of the way: a shift needs two
-  // times, and nothing else.
+  // The only optional part of a shift: a rate. Out of the way until asked for.
   const [showRate, setShowRate] = useState(false);
-  const [showDate, setShowDate] = useState(false);
-  // The shift last added to the week, and what to say about it.
+  // Which shift this answer was saved as, and the signature it was saved at.
+  // Only the id is held: the shift itself is read back out of the week every
+  // time, so a shift edited or deleted over there can never leave a
+  // confirmation here saying something that is no longer true.
+  const [savedId, setSavedId] = useState(null);
   const [savedKey, setSavedKey] = useState(null);
-  const [savedDay, setSavedDay] = useState(null);
-  const [saveHint, setSaveHint] = useState(null);
+  const [dayOpen, setDayOpen] = useState(false);
   const stageRef = useFitToViewport(active);
+
+  // The shift this answer was saved as, as the week has it right now — gone
+  // entirely if it was deleted over there.
+  const saved =
+    savedId === null
+      ? null
+      : (shifts.find((shift) => shift.id === savedId) ?? null);
 
   /** Hand the screen back to the inputs. */
   function recallEditor() {
@@ -84,7 +92,7 @@ export default function CalculatorView({ active = true, onSave, onShowWeek }) {
     setCalculation((current) =>
       current === null || current.ok ? current : null,
     );
-    setSaveHint(null);
+    setDayOpen(false);
     // Changing the shift is editing it, whatever the screen was showing —
     // this is the path for a keyboard that never left the panel.
     recallEditor();
@@ -100,20 +108,6 @@ export default function CalculatorView({ active = true, onSave, onShowWeek }) {
     const next = !showRate;
     setShowRate(next);
     if (!next && draft.hourlyRate !== "") updateDraft("hourlyRate", "");
-  }
-
-  /**
-   * Show or hide the day, which most often is today — so that is what it opens
-   * on, already filled in and ready to be changed.
-   */
-  function toggleDate() {
-    const next = !showDate;
-    setShowDate(next);
-    if (next) {
-      if (draft.date === "") updateDraft("date", todayIsoDate());
-    } else if (draft.date !== "") {
-      updateDraft("date", "");
-    }
   }
 
   /**
@@ -142,52 +136,74 @@ export default function CalculatorView({ active = true, onSave, onShowWeek }) {
    * Save the shift on screen into the week.
    *
    * Deliberately separate from calculating: Wagez calculates all day without
-   * keeping anything. A week is chronological, so this is also the point at
-   * which an undated shift has to be given its day.
+   * keeping anything. But once the user has asked, that is the whole of it —
+   * the day is worked out rather than demanded, and what gets saved is the
+   * very numbers the answer above was made from, so the two can never differ.
    */
   function addToWeek() {
-    if (draft.date === "") {
-      setShowDate(true);
-      updateDraft("date", todayIsoDate());
-      setSaveHint(PICK_A_DAY);
-      return;
-    }
+    const values = calculation?.result;
+    if (values === null || values === undefined) return;
 
-    const { ok, shift, message } = createSavedShift(shiftInput());
-    if (!ok) {
-      setSaveHint(message);
-      return;
-    }
+    const { ok, shift } = createSavedShift({
+      ...values,
+      date: suggestShiftDate(values),
+    });
+    // Unreachable: these values already calculated. Belt and braces.
+    if (!ok) return;
 
     onSave?.(shift);
-    setSavedKey(saveKey(shiftInput()));
-    setSavedDay(formatShiftDay(shift.date));
-    setSaveHint(null);
+    setSavedId(shift.id);
+    setSavedKey(calculation.signature);
+    setDayOpen(false);
+  }
+
+  /** Move the saved shift to another day. It stays the same shift. */
+  function changeDay(date) {
+    if (saved === null || !isIsoDate(date) || date === saved.date) return;
+
+    const { ok, shift } = updateSavedShift(saved, { ...saved, date });
+    if (!ok) return;
+
+    onUpdate?.(shift);
+    setDayOpen(false);
+  }
+
+  /** Take it back out of the week, as though it was never added. */
+  function undoSave() {
+    if (saved === null) return;
+
+    onDelete?.(saved.id);
+    setSavedId(null);
+    setSavedKey(null);
+    setDayOpen(false);
   }
 
   function reset() {
     setDraft(EMPTY_DRAFT);
     setCalculation(null);
     setShowRate(false);
-    setShowDate(false);
+    setSavedId(null);
     setSavedKey(null);
-    setSavedDay(null);
-    setSaveHint(null);
+    setDayOpen(false);
     recallEditor();
   }
 
   const failed = calculation !== null && !calculation.ok;
   const result = calculation?.ok ? calculation.result : null;
+  const signature = shiftSignature(shiftInput());
   // The inputs have moved on since the result was made, so the numbers below no
   // longer answer the question the display above is asking.
-  const stale =
-    result !== null && calculation.signature !== shiftSignature(shiftInput());
+  const stale = result !== null && calculation.signature !== signature;
   // How many values the display above is showing, which is what the editor
   // sizes itself against.
   const entered = currentValues(draft).length;
   // Which half has the screen. Whichever half does not is stepped back, and a
   // click on it takes the screen the other way.
   const answerLeads = stage === RESULT;
+  // The answer on screen is still the one that was saved, so it is still the
+  // one that can be taken back — and the day it says is the week's own.
+  const savedDate =
+    saved !== null && savedKey === signature ? saved.date : null;
 
   return (
     <div
@@ -207,10 +223,8 @@ export default function CalculatorView({ active = true, onSave, onShowWeek }) {
         errors={failed ? calculation.errors : NO_ERRORS}
         steppedBack={answerLeads}
         showRate={showRate}
-        showDate={showDate}
         onChange={updateDraft}
         onToggleRate={toggleRate}
-        onToggleDate={toggleDate}
         onCalculate={calculate}
         onReset={reset}
         onRecall={recallEditor}
@@ -220,10 +234,12 @@ export default function CalculatorView({ active = true, onSave, onShowWeek }) {
         stale={stale}
         steppedBack={!answerLeads}
         onRecall={recallResult}
-        saved={savedKey !== null && savedKey === saveKey(shiftInput())}
-        savedDay={savedDay}
-        hint={saveHint}
+        savedDate={savedDate}
+        dayOpen={dayOpen}
         onAddToWeek={addToWeek}
+        onToggleDay={() => setDayOpen((open) => !open)}
+        onChangeDay={changeDay}
+        onUndo={undoSave}
         onShowWeek={onShowWeek}
       />
     </div>

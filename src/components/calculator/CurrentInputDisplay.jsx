@@ -1,6 +1,5 @@
 import { parseRateCents } from "@/lib/calculations/wages";
 import { formatHourlyRate } from "@/lib/formatters/currency";
-import { formatShiftDay } from "@/lib/formatters/date";
 import { formatTime } from "@/lib/formatters/time";
 
 /**
@@ -28,7 +27,6 @@ export function currentValues(draft) {
       label: "Pay Rate:",
       value: rateCents === null ? null : formatHourlyRate(rateCents),
     },
-    { key: "date", label: "Day:", value: formatShiftDay(draft.date) },
   ].filter((entry) => entry.value !== null);
 }
 

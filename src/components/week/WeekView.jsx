@@ -29,9 +29,21 @@ import WeekSummary from "./WeekSummary";
  *
  * Nothing is drawn until the device has been read. "Today" is where the user
  * is, not where the server is, and a week is worth waiting a beat to get right.
+ *
+ * One shift at a time is open — being edited, copied or asked about before it
+ * is deleted. Which one is the only other thing this view remembers, and it is
+ * forgotten as soon as the week moves on underneath it.
  */
-export default function WeekView({ shifts, weekStartsOn, ready }) {
+export default function WeekView({
+  shifts,
+  weekStartsOn,
+  ready,
+  onAdd,
+  onUpdate,
+  onDelete,
+}) {
   const [chosenWeek, setChosenWeek] = useState(null);
+  const [open, setOpen] = useState(null);
 
   if (!ready) {
     return (
@@ -44,6 +56,32 @@ export default function WeekView({ shifts, weekStartsOn, ready }) {
   const thisWeek = startOfWeek(todayIsoDate(), weekStartsOn);
   const weekStart = chosenWeek ?? thisWeek;
   const isThisWeek = weekStart === thisWeek;
+
+  /** Go to another week, leaving nothing open behind. */
+  function goToWeek(week) {
+    setChosenWeek(week);
+    setOpen(null);
+  }
+
+  /**
+   * A shift the user has finished with. A duplicate arrives as a shift of its
+   * own — new id and all — so what tells the two apart is simply whether this
+   * is still the shift the card was opened on.
+   *
+   * A shift can be moved, or copied, onto a day in another week. The view goes
+   * with it: what just happened should be visible where it happened, rather
+   * than looking like a shift that vanished.
+   */
+  function save(shift, saved) {
+    if (saved.id === shift.id) onUpdate?.(saved);
+    else onAdd?.(saved);
+    goToWeek(startOfWeek(saved.date, weekStartsOn));
+  }
+
+  function remove(id) {
+    onDelete?.(id);
+    setOpen(null);
+  }
 
   const weekShifts = shiftsForWeek(shifts, weekStart);
   const totals = summarizeShifts(weekShifts);
@@ -61,7 +99,7 @@ export default function WeekView({ shifts, weekStartsOn, ready }) {
           type='button'
           className='wagez-quiet-button'
           aria-label='Previous week'
-          onClick={() => setChosenWeek(addDays(weekStart, -DAYS_PER_WEEK))}
+          onClick={() => goToWeek(addDays(weekStart, -DAYS_PER_WEEK))}
         >
           ‹
         </button>
@@ -77,7 +115,7 @@ export default function WeekView({ shifts, weekStartsOn, ready }) {
           type='button'
           className='wagez-quiet-button'
           aria-label='Next week'
-          onClick={() => setChosenWeek(addDays(weekStart, DAYS_PER_WEEK))}
+          onClick={() => goToWeek(addDays(weekStart, DAYS_PER_WEEK))}
         >
           ›
         </button>
@@ -97,7 +135,7 @@ export default function WeekView({ shifts, weekStartsOn, ready }) {
                 <button
                   type='button'
                   className='wagez-inline-button'
-                  onClick={() => setChosenWeek(elsewhere.weekStart)}
+                  onClick={() => goToWeek(elsewhere.weekStart)}
                 >
                   Go to {formatWeekRange(elsewhere.weekStart)}
                 </button>
@@ -107,7 +145,15 @@ export default function WeekView({ shifts, weekStartsOn, ready }) {
         ) : (
           <ul className='wagez-week-list'>
             {weekShifts.map((shift) => (
-              <SavedShiftCard key={shift.id} shift={shift} />
+              <SavedShiftCard
+                key={shift.id}
+                shift={shift}
+                mode={open?.id === shift.id ? open.mode : null}
+                onOpen={(mode) => setOpen({ id: shift.id, mode })}
+                onClose={() => setOpen(null)}
+                onSave={(saved) => save(shift, saved)}
+                onDelete={() => remove(shift.id)}
+              />
             ))}
           </ul>
         )}

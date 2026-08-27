@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { formatCents, formatHourlyRate } from "@/lib/formatters/currency";
+import { parseRateCents } from "@/lib/calculations/wages";
+import {
+  formatCents,
+  formatHourlyRate,
+  formatRateInput,
+} from "@/lib/formatters/currency";
 
 describe("formatCents", () => {
   it("formats money from integer cents", () => {
@@ -37,5 +42,27 @@ describe("formatHourlyRate", () => {
   it("returns null for values that are not money", () => {
     expect(formatHourlyRate(null)).toBeNull();
     expect(formatHourlyRate(Number.NaN)).toBeNull();
+  });
+});
+
+describe("formatRateInput", () => {
+  it("writes a rate the way it would be typed", () => {
+    expect(formatRateInput(2000)).toBe("20");
+    expect(formatRateInput(2250)).toBe("22.50");
+    expect(formatRateInput(725)).toBe("7.25");
+    expect(formatRateInput(5)).toBe("0.05");
+    expect(formatRateInput(0)).toBe("0");
+  });
+
+  it("reads back as the same rate it came from", () => {
+    for (const cents of [0, 5, 725, 2000, 2250, 5075, 123456]) {
+      expect(parseRateCents(formatRateInput(cents))).toBe(cents);
+    }
+  });
+
+  it("is empty when there is no rate to edit", () => {
+    expect(formatRateInput(null)).toBe("");
+    expect(formatRateInput(undefined)).toBe("");
+    expect(formatRateInput(-100)).toBe("");
   });
 });

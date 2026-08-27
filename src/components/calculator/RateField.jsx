@@ -4,8 +4,19 @@
  * Wagez never invents a rate: leaving this blank is a valid shift that reports
  * time worked and no money. The value is normalized into cents at calculation
  * time, so a half-typed "22." never fights the user.
+ *
+ * `action` is an optional control belonging to the field itself, set at the end
+ * of the label row — in the calculator, the way to take the rate away again.
  */
-export default function RateField({ id, label, value, error, onChange, ref }) {
+export default function RateField({
+  id,
+  label,
+  value,
+  error,
+  onChange,
+  action,
+  ref,
+}) {
   const errorId = `${id}-error`;
   // Announced without the trailing colon, and with the unit the "$" and
   // "/hour" adornments carry visually.
@@ -13,9 +24,13 @@ export default function RateField({ id, label, value, error, onChange, ref }) {
 
   return (
     <div className='flex flex-col gap-1'>
-      <label className='wagez-field-label' htmlFor={id}>
-        {label}
-      </label>
+      <div className='wagez-field-head'>
+        <label className='wagez-field-label' htmlFor={id}>
+          {label}
+        </label>
+        {/* Whatever this field's own control is — taking it away again. */}
+        {action}
+      </div>
       <div className='wagez-field'>
         <span aria-hidden='true' className='text-xl font-semibold'>
           $

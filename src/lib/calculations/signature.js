@@ -16,11 +16,11 @@ import { validateShiftInput } from "./validation";
 /**
  * Fixed order, so the same shift always spells the same key.
  *
- * The date is deliberately absent. Dating a shift changes nothing the result
- * says — the same hours for the same money — so a result made before the day
- * was chosen is still a true answer to the question on screen. Including it
- * would stale a perfectly good result the moment the user reached for
- * "Add to week", which is exactly when the day gets chosen.
+ * The date is deliberately absent, and so is any notion of one: dating a shift
+ * changes nothing the result says — the same hours for the same money — which
+ * is why the calculator has no day in it at all. The day is settled when a
+ * shift is saved, and moving a saved shift to another day must not make the
+ * answer it was saved from look stale.
  */
 const VALUE_FIELDS = [
   "startTime",
