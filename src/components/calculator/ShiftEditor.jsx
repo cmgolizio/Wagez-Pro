@@ -4,10 +4,40 @@ import { PM } from "@/lib/calculations/time";
 
 import RevealToggle from "@/components/ui/RevealToggle";
 
+import BreakField from "./BreakField";
+import DefaultRateToggle from "./DefaultRateToggle";
 import RateField from "./RateField";
 import TimeField from "./TimeField";
 
 const RATE_FIELD = "hourly-rate";
+const BREAK_FIELD = "break-minutes";
+
+/**
+ * Follow an optional field on and off screen.
+ *
+ * Asking for a field and then having to go and find it would be two acts where
+ * the user meant one, so the caret goes with it: into the field when it
+ * appears, and back onto the word that offers it again when it goes.
+ *
+ * Only when it was asked for, though. A field that simply arrives — a saved pay
+ * rate on opening Wagez, or that same rate again after a reset — is nobody's
+ * request, and a caret that jumps into it takes the user off the clock-in time
+ * they were about to type. `asked` is that distinction: a fresh value each time
+ * this field is the one the user pressed, and null for every other reason it
+ * might have appeared.
+ */
+function useAskedFocus(asked, open, fieldRef, toggleRef) {
+  useEffect(() => {
+    if (asked === null) return;
+
+    if (open) {
+      fieldRef.current?.focus();
+      fieldRef.current?.select?.();
+    } else {
+      toggleRef.current?.focus();
+    }
+  }, [asked, open, fieldRef, toggleRef]);
+}
 
 /**
  * The center panel: the whole shift, editable, plus "Do Math."
@@ -16,10 +46,10 @@ const RATE_FIELD = "hourly-rate";
  * calculating is a single call up to the parent.
  *
  * Only the two times are ever on screen to begin with, because only the two
- * times are required. A pay rate is one word away, and the same word takes it
- * away again when it is pressed a second time. Nothing else belongs here: the
- * day a shift was worked changes nothing about the answer, so it is settled
- * where it matters, at the point the shift is saved.
+ * times are required. A pay rate and an unpaid break are one word each, and the
+ * same word takes each away again when it is pressed a second time. Nothing
+ * else belongs here: the day a shift was worked changes nothing about the
+ * answer, so it is settled where it matters, at the point the shift is saved.
  *
  * Focus runs straight down that path: the start hour has it on arrival, and
  * each time hands it on the moment it is finished, so a whole shift can be
@@ -41,8 +71,14 @@ export default function ShiftEditor({
   errors,
   steppedBack = false,
   showRate,
+  showBreak,
+  asked = null,
+  rateIsDefault,
+  canBeDefault,
   onChange,
   onToggleRate,
+  onToggleBreak,
+  onToggleDefaultRate,
   onCalculate,
   onReset,
   onRecall,
@@ -50,27 +86,23 @@ export default function ShiftEditor({
   const startRef = useRef(null);
   const endRef = useRef(null);
   const rateRef = useRef(null);
-  const revealRef = useRef(null);
+  const breakRef = useRef(null);
+  const rateRevealRef = useRef(null);
+  const breakRevealRef = useRef(null);
   const doMathRef = useRef(null);
-  const rateWasOpen = useRef(showRate);
 
-  /*
-    Asking for a pay rate and then having to go and find it would be two acts
-    where the user meant one, so the caret follows the field on and off screen:
-    into the rate when it appears, and back onto the word that offers it again
-    when it goes. Arrival is not a toggle, so nothing moves on first render.
-  */
-  useEffect(() => {
-    if (showRate === rateWasOpen.current) return;
-    rateWasOpen.current = showRate;
-
-    if (showRate) {
-      rateRef.current?.focus();
-      rateRef.current?.select?.();
-    } else {
-      revealRef.current?.focus();
-    }
-  }, [showRate]);
+  useAskedFocus(
+    asked?.field === "hourlyRate" ? asked : null,
+    showRate,
+    rateRef,
+    rateRevealRef,
+  );
+  useAskedFocus(
+    asked?.field === "breakMinutes" ? asked : null,
+    showBreak,
+    breakRef,
+    breakRevealRef,
+  );
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -83,6 +115,7 @@ export default function ShiftEditor({
       [calculation.errors.startTime, startRef],
       [calculation.errors.endTime, endRef],
       [calculation.errors.hourlyRate, rateRef],
+      [calculation.errors.breakMinutes, breakRef],
     ].find(([error]) => error !== undefined);
     firstInvalid?.[1].current?.focus();
   }
@@ -96,7 +129,8 @@ export default function ShiftEditor({
   /**
    * Both times are in. What is left is a pay rate the user asked for and has
    * not filled in yet; anything else means the shift is complete, so the answer
-   * lands under the return key.
+   * lands under the return key. An empty break is not left over in the same
+   * way — a break nobody has typed is no break, which is a whole shift.
    */
   function focusAfterEnd() {
     const wantsRate = showRate && draft.hourlyRate === "";
@@ -108,6 +142,15 @@ export default function ShiftEditor({
   const recall = steppedBack
     ? { onClick: onRecall, onFocusCapture: onRecall }
     : {};
+
+  /** Keeping this rate as the one Wagez opens on. Only ever the rate's own. */
+  const defaultRateToggle = (
+    <DefaultRateToggle
+      pressed={rateIsDefault}
+      disabled={!rateIsDefault && !canBeDefault}
+      onToggle={onToggleDefaultRate}
+    />
+  );
 
   return (
     <form
@@ -139,22 +182,6 @@ export default function ShiftEditor({
         defaultMeridiem={PM}
       />
 
-      {/* The optional half of a shift, kept to one word until it is wanted.
-          Once it is, the word has been replaced by the field it revealed, so
-          the way back out goes with that field rather than standing alone. */}
-      {showRate ? null : (
-        <div className='wagez-reveal-row'>
-          <RevealToggle
-            ref={revealRef}
-            label='$/hour'
-            removeLabel='Remove the pay rate'
-            open={false}
-            controls={RATE_FIELD}
-            onToggle={onToggleRate}
-          />
-        </div>
-      )}
-
       {showRate ? (
         <RateField
           ref={rateRef}
@@ -164,17 +191,70 @@ export default function ShiftEditor({
           error={errors.hourlyRate}
           onChange={(value) => onChange("hourlyRate", value)}
           action={
+            <>
+              {defaultRateToggle}
+              <RevealToggle
+                ref={rateRevealRef}
+                label='$/Hr'
+                removeLabel='Remove the pay rate'
+                open
+                controls={RATE_FIELD}
+                onToggle={onToggleRate}
+              />
+            </>
+          }
+        />
+      ) : null}
+
+      {showBreak ? (
+        <BreakField
+          ref={breakRef}
+          id={BREAK_FIELD}
+          label='Break:'
+          value={draft.breakMinutes}
+          error={errors.breakMinutes}
+          onChange={(value) => onChange("breakMinutes", value)}
+          action={
             <RevealToggle
-              ref={revealRef}
-              label='$/hour'
-              removeLabel='Remove the pay rate'
+              ref={breakRevealRef}
+              label='Break'
+              removeLabel='Remove the break'
               open
-              controls={RATE_FIELD}
-              onToggle={onToggleRate}
+              controls={BREAK_FIELD}
+              onToggle={onToggleBreak}
             />
           }
         />
       ) : null}
+
+      {/* The optional half of a shift, each kept to one word until it is
+          wanted. Whatever is still on offer stays here, together, on the last
+          line before the button — revealing one lifts it out of the row and
+          into a field above, taking the way back out with it. */}
+      {showRate && showBreak ? null : (
+        <div className='wagez-reveal-row'>
+          {showRate ? null : (
+            <RevealToggle
+              ref={rateRevealRef}
+              label='$/Hr'
+              removeLabel='Remove the pay rate'
+              open={false}
+              controls={RATE_FIELD}
+              onToggle={onToggleRate}
+            />
+          )}
+          {showBreak ? null : (
+            <RevealToggle
+              ref={breakRevealRef}
+              label='Break'
+              removeLabel='Remove the break'
+              open={false}
+              controls={BREAK_FIELD}
+              onToggle={onToggleBreak}
+            />
+          )}
+        </div>
+      )}
 
       <div className='flex items-center gap-2'>
         <button ref={doMathRef} type='submit' className='wagez-do-math'>

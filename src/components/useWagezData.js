@@ -46,6 +46,21 @@ export default function useWagezData() {
     }));
   }, []);
 
+  /**
+   * Remember, or forget, the rate this Wagez opens on.
+   *
+   * Only ever what the user asked for: editing one shift's rate is that
+   * shift's business, and never quietly becomes everybody's.
+   *
+   * @param {number|null} cents null to go back to having no default at all.
+   */
+  const setDefaultRateCents = useCallback((cents) => {
+    updateWagezData((current) => ({
+      ...current,
+      settings: { ...current.settings, defaultHourlyRateCents: cents },
+    }));
+  }, []);
+
   /** Take a shift out of the week for good. */
   const removeShift = useCallback((id) => {
     updateWagezData((current) => ({
@@ -61,5 +76,6 @@ export default function useWagezData() {
     addShift,
     updateShift,
     removeShift,
+    setDefaultRateCents,
   };
 }

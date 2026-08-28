@@ -102,6 +102,32 @@ export function setRate(value) {
   fireEvent.change(screen.getByLabelText(RATE_LABEL), { target: { value } });
 }
 
+/** The break field's accessible name, matched exactly like the rate's. */
+export const BREAK_LABEL = "Break in minutes";
+
+/** The unpaid break is behind its own word too. */
+export function showBreak() {
+  return reveal("break-minutes");
+}
+
+export function setBreak(value) {
+  showBreak();
+  fireEvent.change(screen.getByLabelText(BREAK_LABEL), { target: { value } });
+}
+
+/**
+ * The toggle that keeps the rate on screen as the one Wagez opens on. It lives
+ * beside the rate, so the field has to be showing before it exists.
+ */
+export function defaultRateToggle() {
+  return document.querySelector(".wagez-default-rate");
+}
+
+/** Ask Wagez to open on the rate currently entered. */
+export function keepRateAsDefault() {
+  fireEvent.click(defaultRateToggle());
+}
+
 export function doMath() {
   fireEvent.click(screen.getByRole("button", { name: "Do Math." }));
 }
@@ -152,8 +178,9 @@ export function openShift() {
   fireEvent.click(screen.getByRole("button", { name: "Shift" }));
 }
 
-export function enterShift({ start, end, rate }) {
+export function enterShift({ start, end, rate, breakMinutes }) {
   setTime("Start", start);
   setTime("Stop", end);
   if (rate !== undefined) setRate(rate);
+  if (breakMinutes !== undefined) setBreak(breakMinutes);
 }

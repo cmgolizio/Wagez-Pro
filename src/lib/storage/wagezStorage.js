@@ -17,7 +17,15 @@ export const STORAGE_KEY = "wagez:v2";
 
 export const STORAGE_VERSION = 1;
 
-export const DEFAULT_SETTINGS = { weekStartsOn: SUNDAY };
+/**
+ * A Wagez nobody has configured: no rate of its own, and a week that begins on
+ * a Sunday. `defaultHourlyRateCents` is null rather than zero — zero is a rate
+ * somebody could mean, and Wagez never invents one.
+ */
+export const DEFAULT_SETTINGS = {
+  defaultHourlyRateCents: null,
+  weekStartsOn: SUNDAY,
+};
 
 const WEEK_STARTS = [SUNDAY, MONDAY];
 
@@ -44,9 +52,22 @@ function browserStorage() {
   }
 }
 
+/**
+ * The rate new shifts open on, in whole cents.
+ *
+ * Anything else — a decimal, a string, a negative — is not a rate Wagez wrote,
+ * so it is read as no default at all rather than repaired into one.
+ */
+function normalizeDefaultRate(value) {
+  return Number.isInteger(value) && value >= 0 ? value : null;
+}
+
 function normalizeSettings(value) {
   const settings = value === null || typeof value !== "object" ? {} : value;
   return {
+    defaultHourlyRateCents: normalizeDefaultRate(
+      settings.defaultHourlyRateCents,
+    ),
     weekStartsOn: WEEK_STARTS.includes(settings.weekStartsOn)
       ? settings.weekStartsOn
       : DEFAULT_SETTINGS.weekStartsOn,
@@ -87,6 +108,10 @@ export function validateStoredData(value) {
  * There is only one version so far, so this is a gate rather than a migration:
  * data from a version Wagez does not know how to read is refused, and the
  * caller starts clean instead of guessing at its shape.
+ *
+ * A setting that is merely absent is not a different version: settings are
+ * normalized to their defaults on the way in, so adding one costs nobody the
+ * week they had already saved.
  *
  * @returns {object|null} null when the data cannot be brought forward.
  */

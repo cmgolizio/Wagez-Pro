@@ -294,6 +294,7 @@ export default function TimeField({
             type='button'
             className='wagez-chip'
             aria-label={`${name} ${Number(minute)} minutes`}
+            aria-pressed={parts.minute === minute}
             onClick={() => afterTimeEntered(commit({ ...parts, minute }))}
           >
             :{minute}

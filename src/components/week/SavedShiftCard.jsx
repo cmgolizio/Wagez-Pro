@@ -79,6 +79,14 @@ export default function SavedShiftCard({
         {derived.crossesMidnight ? (
           <span className='wagez-shift-overnight'> +1 day</span>
         ) : null}
+        {/* The hours below are what was paid for, so a shift that lost some of
+            them to an unpaid break says where they went. */}
+        {derived.breakMinutes === 0 ? null : (
+          <span className='wagez-shift-break'>
+            {" "}
+            − {formatDurationCompact(derived.breakMinutes)} break
+          </span>
+        )}
       </p>
       <p className='wagez-shift-totals'>
         <span className='wagez-shift-duration'>

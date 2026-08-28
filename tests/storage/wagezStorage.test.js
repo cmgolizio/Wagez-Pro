@@ -47,7 +47,8 @@ describe("defaults", () => {
   it("starts empty, at the current version", () => {
     expect(defaultWagezData()).toEqual({
       version: STORAGE_VERSION,
-      settings: { weekStartsOn: SUNDAY },
+      // No rate of its own: Wagez opens on nothing until it is told otherwise.
+      settings: { defaultHourlyRateCents: null, weekStartsOn: SUNDAY },
       shifts: [],
     });
   });
@@ -160,6 +161,50 @@ describe("clearing", () => {
     expect(clearWagezData(storage)).toBe(true);
     expect(storage.has(STORAGE_KEY)).toBe(false);
     expect(loadWagezData(storage)).toEqual(defaultWagezData());
+  });
+});
+
+describe("settings", () => {
+  it("keeps a saved default rate through a round trip", () => {
+    const storage = fakeStorage();
+
+    saveWagezData(
+      { ...defaultWagezData(), settings: { defaultHourlyRateCents: 2250 } },
+      storage,
+    );
+
+    expect(loadWagezData(storage).settings.defaultHourlyRateCents).toBe(2250);
+  });
+
+  it("allows a rate of nothing, which somebody could mean", () => {
+    expect(
+      validateStoredData({ settings: { defaultHourlyRateCents: 0 } }).settings
+        .defaultHourlyRateCents,
+    ).toBe(0);
+  });
+
+  it("reads a rate it did not write as no default at all", () => {
+    for (const value of [-1, 22.5, "2200", null, {}]) {
+      expect(
+        validateStoredData({ settings: { defaultHourlyRateCents: value } })
+          .settings.defaultHourlyRateCents,
+      ).toBeNull();
+    }
+  });
+
+  it("costs nobody their week when a setting is simply not there yet", () => {
+    const data = loadWagezData(
+      fakeStorage(
+        stored({
+          version: STORAGE_VERSION,
+          settings: { weekStartsOn: SUNDAY },
+          shifts: [SHIFT],
+        }),
+      ),
+    );
+
+    expect(data.settings.defaultHourlyRateCents).toBeNull();
+    expect(data.shifts).toHaveLength(1);
   });
 });
 

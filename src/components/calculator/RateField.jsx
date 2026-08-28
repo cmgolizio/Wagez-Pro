@@ -5,8 +5,9 @@
  * time worked and no money. The value is normalized into cents at calculation
  * time, so a half-typed "22." never fights the user.
  *
- * `action` is an optional control belonging to the field itself, set at the end
- * of the label row — in the calculator, the way to take the rate away again.
+ * `action` is the field's own controls, set at the end of the label row — in
+ * the calculator, the way to keep this rate as the default and the way to take
+ * the field away again.
  */
 export default function RateField({
   id,
@@ -28,8 +29,11 @@ export default function RateField({
         <label className='wagez-field-label' htmlFor={id}>
           {label}
         </label>
-        {/* Whatever this field's own control is — taking it away again. */}
-        {action}
+        {/* Whatever this field's own controls are — keeping the rate, and
+            taking the field away again. */}
+        {action === undefined ? null : (
+          <div className='wagez-field-actions'>{action}</div>
+        )}
       </div>
       <div className='wagez-field'>
         <span aria-hidden='true' className='text-xl font-semibold'>

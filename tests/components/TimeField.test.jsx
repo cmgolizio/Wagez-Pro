@@ -13,7 +13,7 @@ const LABEL = "Start:";
 const NAME = "Start";
 
 /** A stand-in for the draft above: the time lives outside the control. */
-function Harness({ initial = "", error }) {
+function Harness({ initial = "", error, onComplete }) {
   const [value, setValue] = useState(initial);
 
   return (
@@ -24,6 +24,7 @@ function Harness({ initial = "", error }) {
         value={value}
         error={error}
         onChange={setValue}
+        onComplete={onComplete}
       />
       <output data-testid='published'>{value}</output>
       <button type='button' onClick={() => setValue("")}>
@@ -71,15 +72,17 @@ describe("entering a time", () => {
   });
 
   it("moves to the next segment once one is full", () => {
-    render(<Harness />);
+    const onComplete = vi.fn();
+    render(<Harness onComplete={onComplete} />);
 
     typeSegment(hour(), "4");
     expect(document.activeElement).toBe(minute());
+    expect(onComplete).not.toHaveBeenCalled();
 
+    // The segments now make a whole time, so this field has nothing left to
+    // collect and hands on to whoever owns the form.
     typeSegment(minute(), "30");
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: `${NAME} AM` }),
-    );
+    expect(onComplete).toHaveBeenCalled();
   });
 
   it("waits on an hour that could still grow", () => {

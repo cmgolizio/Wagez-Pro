@@ -155,8 +155,10 @@ export function updateSavedShift(shift, input = {}) {
 }
 
 /**
- * A saved shift as an editor's fields: the rate becomes the text it was typed
- * as, and everything else is already in the form the controls speak.
+ * A saved shift as an editor's fields: the rate and the break become the text
+ * they were typed as, and everything else is already in the form the controls
+ * speak. A shift with no break has an empty break field, which is what the
+ * calculator's own empty field means.
  */
 export function shiftDraft(shift) {
   return {
@@ -164,7 +166,7 @@ export function shiftDraft(shift) {
     startTime: shift.startTime,
     endTime: shift.endTime,
     hourlyRate: formatRateInput(shift.hourlyRateCents),
-    breakMinutes: shift.breakMinutes,
+    breakMinutes: shift.breakMinutes === 0 ? "" : String(shift.breakMinutes),
   };
 }
 

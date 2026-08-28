@@ -1,5 +1,7 @@
+import { parseMinutes } from "@/lib/calculations/time";
 import { parseRateCents } from "@/lib/calculations/wages";
 import { formatHourlyRate } from "@/lib/formatters/currency";
+import { formatDurationCompact } from "@/lib/formatters/duration";
 import { formatTime } from "@/lib/formatters/time";
 
 /**
@@ -14,6 +16,7 @@ import { formatTime } from "@/lib/formatters/time";
  */
 export function currentValues(draft) {
   const rateCents = parseRateCents(draft.hourlyRate);
+  const breakMinutes = parseMinutes(draft.breakMinutes);
 
   return [
     {
@@ -26,6 +29,17 @@ export function currentValues(draft) {
       key: "hourlyRate",
       label: "Pay Rate:",
       value: rateCents === null ? null : formatHourlyRate(rateCents),
+    },
+    {
+      // A break of no minutes is the same as no break, so it says nothing —
+      // and the result below has to be explicable from what is up here, which
+      // is why a break that does come off the clock says so.
+      key: "breakMinutes",
+      label: "Break:",
+      value:
+        breakMinutes === null || breakMinutes === 0
+          ? null
+          : formatDurationCompact(breakMinutes),
     },
   ].filter((entry) => entry.value !== null);
 }

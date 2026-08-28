@@ -176,7 +176,8 @@ describe("shiftDraft", () => {
       startTime: "16:00",
       endTime: "23:30",
       hourlyRate: "22.50",
-      breakMinutes: 0,
+      // A shift with no break has an empty break field, not a typed zero.
+      breakMinutes: "",
     });
   });
 
@@ -189,7 +190,7 @@ describe("shiftDraft", () => {
   it("keeps an unpaid break with the shift it belongs to", () => {
     const { shift } = createSavedShift({ ...DRAFT, breakMinutes: 30 });
 
-    expect(shiftDraft(shift).breakMinutes).toBe(30);
+    expect(shiftDraft(shift).breakMinutes).toBe("30");
     // Through an edit of something else entirely, and through a copy.
     expect(
       updateSavedShift(shift, { ...shiftDraft(shift), endTime: "22:00" }).shift

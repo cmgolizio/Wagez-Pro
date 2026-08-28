@@ -392,12 +392,67 @@ summary {
   pointer-events: none;
 }
 
-/* A field's name, and any control belonging to that field, on one line. */
+/* A field's name, and any controls belonging to that field, on one line. */
 .wagez-field-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+/* A field's own controls stay together at the end of its name's row. */
+.wagez-field-actions {
+  display: flex;
+  align-items: center;
+  gap: calc(0.15rem * var(--wagez-scale));
+}
+
+/*
+  Keeping a rate as the one Wagez opens on.
+
+  Text and nothing else while it is off, like the words that reveal the
+  optional fields — pressed, it fills in, because "this is the rate I am kept
+  on" is a state worth being able to see at a glance rather than a thing that
+  was done once. Disabled it fades: there is no rate here to keep.
+*/
+.wagez-default-rate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(2.75rem * var(--wagez-scale));
+  padding-inline: calc(0.5rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-control);
+  font-size: calc(0.8125rem * var(--wagez-scale));
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: rgba(22, 22, 29, 0.66);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.wagez-default-rate:hover:not(:disabled) {
+  color: var(--wagez-ink);
+}
+
+.wagez-default-rate[aria-pressed="true"] {
+  background-color: var(--wagez-ink);
+  color: #ffffff;
+}
+
+.wagez-default-rate[aria-pressed="true"]:hover {
+  background-color: #33333f;
+  color: #ffffff;
+}
+
+.wagez-default-rate:disabled {
+  color: rgba(22, 22, 29, 0.38);
+  cursor: default;
+}
+
+.wagez-default-rate:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
 }
 
 .wagez-field-label {
@@ -555,6 +610,20 @@ summary {
 
 .wagez-chip:hover {
   background-color: rgba(255, 255, 255, 0.94);
+}
+
+/*
+  The quick value the time or the break is already on. Filled like every other
+  pressed control in Wagez, so what a screen reader is told is also what a
+  sighted user can see.
+*/
+.wagez-chip[aria-pressed="true"] {
+  background-color: var(--wagez-ink);
+  color: #ffffff;
+}
+
+.wagez-chip[aria-pressed="true"]:hover {
+  background-color: #33333f;
 }
 
 .wagez-chip:focus-visible {
@@ -1036,6 +1105,14 @@ summary {
   font-size: 0.7em;
   font-weight: 700;
   color: var(--wagez-muted);
+}
+
+/* Where the missing hours went. Quieter than the shift, still well clear of
+   the contrast floor against every stop of the gradient. */
+.wagez-shift-break {
+  font-size: 0.7em;
+  font-weight: 700;
+  color: rgba(22, 22, 29, 0.66);
 }
 
 .wagez-shift-totals {

@@ -7,6 +7,7 @@ import {
   updateSavedShift,
 } from "@/lib/shifts/savedShift";
 
+import BreakField from "@/components/calculator/BreakField";
 import DateField from "@/components/calculator/DateField";
 import RateField from "@/components/calculator/RateField";
 import TimeField from "@/components/calculator/TimeField";
@@ -30,10 +31,10 @@ const TITLES = { [EDIT]: "Edit shift", [DUPLICATE]: "Duplicate shift" };
  * Nothing is written until the form is saved — a cancelled edit changes
  * nothing, and a cancelled duplicate creates nothing.
  *
- * The pay rate is shown rather than hidden behind a word, unlike the
- * calculator: this is a shift somebody is coming back to fix, and a rate that
- * needs correcting should not have to be found first. Left empty it means what
- * it always means — hours, and no money.
+ * The pay rate and the break are shown rather than hidden behind a word, unlike
+ * the calculator: this is a shift somebody is coming back to fix, and a value
+ * that needs correcting should not have to be found first. Left empty each
+ * means what it always means — no money, and no break.
  */
 export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
   const [draft, setDraft] = useState(() =>
@@ -115,6 +116,13 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
         value={draft.hourlyRate}
         error={errors.hourlyRate}
         onChange={(value) => updateDraft("hourlyRate", value)}
+      />
+      <BreakField
+        id={field("break")}
+        label='Break:'
+        value={draft.breakMinutes}
+        error={errors.breakMinutes}
+        onChange={(value) => updateDraft("breakMinutes", value)}
       />
 
       <div className='wagez-shift-form-actions'>
