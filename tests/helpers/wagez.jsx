@@ -7,8 +7,44 @@
  */
 
 import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { afterAll, vi } from "vitest";
 
 import { resetWagezStore } from "@/lib/storage/wagezStore";
+
+/**
+ * A moment to run the tests at: Wednesday 19 August 2026, half past six in the
+ * evening.
+ *
+ * Wagez reads the clock for real work — which day a shift belongs to, which
+ * week is "this week" — so a test that saves a nine-to-five and then looks for
+ * it in this week is only telling the truth if it knows what time it is. Run at
+ * four on a Sunday morning with the real clock, that same shift is yesterday's,
+ * yesterday is last week, and the week on screen is empty.
+ *
+ * Mid-week and mid-evening is a moment with nothing special about it: every
+ * ordinary shift belongs to today, and today is comfortably inside its week.
+ */
+export const NOW = new Date("2026-08-19T18:30:00");
+
+/**
+ * Stop the clock for this test file, and start it again afterwards. Only `Date`
+ * is held: timers, animation frames and the scheduler React renders through are
+ * all left alone.
+ *
+ * Call it at the top of a test file, before anything reads the date.
+ */
+export function freezeClock(now = NOW) {
+  vi.useFakeTimers({ toFake: ["Date"], now });
+  afterAll(() => vi.useRealTimers());
+}
+
+/**
+ * Move the frozen clock, for a test that is about a particular time of day.
+ * Set it back to {@link NOW} afterwards: the clock belongs to the whole file.
+ */
+export function setClock(now = NOW) {
+  vi.setSystemTime(now);
+}
 
 /** Unmount, and forget the device, so each test starts on a fresh Wagez. */
 export function cleanupWagez() {
@@ -168,6 +204,22 @@ export function setDay(date) {
 /** Take the saved shift back out of the week. */
 export function undoSave() {
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+}
+
+/**
+ * The overtime settings, folded away under the week. Opens them if they are
+ * closed, and hands back the control that opens them.
+ */
+export function openOvertimeSettings() {
+  const toggle = document.querySelector(".wagez-settings-toggle");
+  if (toggle.getAttribute("aria-expanded") === "false") fireEvent.click(toggle);
+  return toggle;
+}
+
+/** Switch overtime on, or off again. */
+export function toggleOvertime() {
+  openOvertimeSettings();
+  fireEvent.click(screen.getByRole("switch", { name: "Calculate overtime" }));
 }
 
 export function openWeek() {

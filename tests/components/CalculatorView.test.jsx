@@ -16,6 +16,7 @@ import {
   displayedLabels,
   doMath,
   enterShift,
+  freezeClock,
   revealToggle,
   savedDay,
   setDay,
@@ -25,6 +26,11 @@ import {
   showRate,
   undoSave,
 } from "../helpers/wagez";
+
+// Wagez reads the clock to place a shift in a day and a week, so the tests
+// hold it still: run for real at the wrong hour, an ordinary shift belongs to
+// yesterday and yesterday can belong to last week.
+freezeClock();
 
 afterEach(cleanupWagez);
 

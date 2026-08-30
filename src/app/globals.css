@@ -1048,6 +1048,22 @@ summary {
   color: var(--wagez-ink);
 }
 
+/*
+  The week's hours, split where the threshold fell. One quiet line between the
+  total and the money, and only when there is overtime to report — a week that
+  never reached the threshold reads exactly as it does with overtime off.
+*/
+.wagez-week-split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  column-gap: 0.75rem;
+  font-size: clamp(0.8rem, 3.2vw, 0.95rem);
+  font-weight: 700;
+  color: rgba(22, 22, 29, 0.66);
+}
+
 .wagez-week-money {
   font-size: clamp(2rem, 9vw, 3.5rem);
   font-weight: 800;
@@ -1122,10 +1138,25 @@ summary {
   gap: 0.75rem;
 }
 
+.wagez-shift-hours {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.4rem;
+  min-width: 0;
+}
+
 .wagez-shift-duration {
   font-size: clamp(1rem, 4vw, 1.2rem);
   font-weight: 800;
   color: var(--wagez-ink);
+}
+
+/* How much of this shift the week paid at the overtime multiplier. */
+.wagez-shift-overtime {
+  font-size: 0.8em;
+  font-weight: 700;
+  color: rgba(22, 22, 29, 0.66);
 }
 
 .wagez-shift-pay {
@@ -1226,6 +1257,123 @@ summary {
 }
 
 /*
+  Settings, as far as Wagez has any: one folded line under the week.
+
+  Overtime is a calculation somebody opts into, so it stays out of the way of
+  entering a shift and lives where its effect is visible. Closed, it is a word
+  and the setting currently in force; open, it is the switch and the two numbers
+  behind it, and a plain statement of what Wagez is and is not doing with them.
+*/
+.wagez-settings {
+  flex-shrink: 0;
+}
+
+.wagez-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding-inline: 0.25rem;
+  border-radius: var(--wagez-radius-control);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(22, 22, 29, 0.66);
+  transition: color 140ms ease;
+}
+
+.wagez-settings-toggle:hover {
+  color: var(--wagez-ink);
+}
+
+.wagez-settings-toggle:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
+.wagez-settings-state {
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--wagez-ink);
+}
+
+.wagez-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--wagez-radius-field);
+  background-color: rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+/* On or off, said in the state rather than in the label. */
+.wagez-setting-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding-inline: 0.25rem;
+  border-radius: var(--wagez-radius-control);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--wagez-ink);
+}
+
+.wagez-setting-switch:focus-visible {
+  outline: 3px solid var(--wagez-ink);
+  outline-offset: 2px;
+}
+
+.wagez-setting-value {
+  min-width: 2.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--wagez-radius-control);
+  background-color: rgba(22, 22, 29, 0.08);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-align: center;
+  color: rgba(22, 22, 29, 0.66);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.wagez-setting-switch[aria-checked="true"] .wagez-setting-value {
+  background-color: var(--wagez-ink);
+  color: #ffffff;
+}
+
+.wagez-settings-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.6rem;
+}
+
+/* The unit belongs to the number, so it never wraps away from it. */
+.wagez-settings-fields .wagez-field span {
+  white-space: nowrap;
+}
+
+/* No legal claim: these are the user's own assumptions, applied as given. */
+.wagez-settings-note {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: rgba(22, 22, 29, 0.66);
+}
+
+/*
   Wide screens.
 
   A phone reads the calculator top to bottom; a laptop has room to put the three
@@ -1297,6 +1445,10 @@ summary {
 
   .wagez-week-summary {
     text-align: left;
+  }
+
+  .wagez-week-split {
+    justify-content: flex-start;
   }
 
   .wagez-week-empty {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import WagezApp from "@/components/WagezApp";
 import { addDays, startOfWeek, todayIsoDate } from "@/lib/dates/isoDate";
@@ -13,15 +13,22 @@ import {
   cleanupWagez,
   doMath,
   enterShift,
+  freezeClock,
   openShift,
   openWeek,
   reloadWagez,
   resetShift,
   savedDay,
+  setClock,
   setDay,
   setTime,
   undoSave,
 } from "../helpers/wagez";
+
+// Wagez reads the clock to place a shift in a day and a week, so the tests
+// hold it still: run for real at the wrong hour, an ordinary shift belongs to
+// yesterday and yesterday can belong to last week.
+freezeClock();
 
 afterEach(cleanupWagez);
 
@@ -82,8 +89,7 @@ describe("adding a shift to the week", () => {
   it("saves on one press, on the day the shift was worked", () => {
     // Ten to midnight on Monday 17 August: a shift that started at four this
     // afternoon is today's, and nobody needs to be asked.
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date(2026, 7, 17, 23, 50));
+    setClock(new Date(2026, 7, 17, 23, 50));
 
     try {
       render(<WagezApp />);
@@ -103,14 +109,13 @@ describe("adding a shift to the week", () => {
       expect(week().getByText("7h 30m")).not.toBeNull();
       expect(summary().getByText("$150.00")).not.toBeNull();
     } finally {
-      vi.useRealTimers();
+      setClock();
     }
   });
 
   it("carries a shift back to last night when that is when it was worked", () => {
     // Half past three in the morning, logging ten last night to three just now.
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date(2026, 7, 18, 3, 30));
+    setClock(new Date(2026, 7, 18, 3, 30));
 
     try {
       render(<WagezApp />);
@@ -125,7 +130,7 @@ describe("adding a shift to the week", () => {
       expect(week().getByText("+1 day")).not.toBeNull();
       expect(summary().getByText("$90.00")).not.toBeNull();
     } finally {
-      vi.useRealTimers();
+      setClock();
     }
   });
 

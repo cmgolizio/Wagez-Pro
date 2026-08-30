@@ -10,10 +10,13 @@ import {
 } from "@/lib/dates/isoDate";
 import { formatWeekRange } from "@/lib/formatters/date";
 import {
+  allocateShifts,
   groupShiftsByWeek,
   shiftsForWeek,
-  summarizeShifts,
+  summarizeAllocated,
 } from "@/lib/shifts/week";
+
+import OvertimeSettings from "@/components/settings/OvertimeSettings";
 
 import SavedShiftCard from "./SavedShiftCard";
 import WeekSummary from "./WeekSummary";
@@ -37,10 +40,12 @@ import WeekSummary from "./WeekSummary";
 export default function WeekView({
   shifts,
   weekStartsOn,
+  overtime,
   ready,
   onAdd,
   onUpdate,
   onDelete,
+  onSetOvertime,
 }) {
   const [chosenWeek, setChosenWeek] = useState(null);
   const [open, setOpen] = useState(null);
@@ -83,8 +88,10 @@ export default function WeekView({
     setOpen(null);
   }
 
-  const weekShifts = shiftsForWeek(shifts, weekStart);
-  const totals = summarizeShifts(weekShifts);
+  // Priced a week at a time, in the order the shifts were worked: with overtime
+  // switched on, what a shift is worth depends on the hours that came before it.
+  const weekShifts = allocateShifts(shiftsForWeek(shifts, weekStart), overtime);
+  const totals = summarizeAllocated(weekShifts);
   // Somewhere to go when this week is empty but the user's work is not.
   const [latestWeek] = groupShiftsByWeek(shifts, weekStartsOn);
   const elsewhere =
@@ -122,7 +129,7 @@ export default function WeekView({
       </nav>
 
       <div className='wagez-week-body'>
-        <WeekSummary totals={totals} />
+        <WeekSummary totals={totals} overtime={overtime} />
 
         {weekShifts.length === 0 ? (
           <div className='wagez-week-empty'>
@@ -144,10 +151,12 @@ export default function WeekView({
           </div>
         ) : (
           <ul className='wagez-week-list'>
-            {weekShifts.map((shift) => (
+            {weekShifts.map(({ shift, pay }) => (
               <SavedShiftCard
                 key={shift.id}
                 shift={shift}
+                pay={pay}
+                overtime={overtime}
                 mode={open?.id === shift.id ? open.mode : null}
                 onOpen={(mode) => setOpen({ id: shift.id, mode })}
                 onClose={() => setOpen(null)}
@@ -157,6 +166,8 @@ export default function WeekView({
             ))}
           </ul>
         )}
+
+        <OvertimeSettings overtime={overtime} onChange={onSetOvertime} />
       </div>
     </section>
   );

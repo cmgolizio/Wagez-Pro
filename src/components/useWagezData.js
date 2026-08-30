@@ -61,6 +61,24 @@ export default function useWagezData() {
     }));
   }, []);
 
+  /**
+   * Change how overtime is worked out — switched on or off, or given a
+   * different threshold or multiplier.
+   *
+   * Only what is named moves; the rest of the settings stay as they were.
+   *
+   * @param {object} changes any of `enabled`, `thresholdMinutes`, `multiplier`.
+   */
+  const setOvertime = useCallback((changes) => {
+    updateWagezData((current) => ({
+      ...current,
+      settings: {
+        ...current.settings,
+        overtime: { ...current.settings.overtime, ...changes },
+      },
+    }));
+  }, []);
+
   /** Take a shift out of the week for good. */
   const removeShift = useCallback((id) => {
     updateWagezData((current) => ({
@@ -77,5 +95,6 @@ export default function useWagezData() {
     updateShift,
     removeShift,
     setDefaultRateCents,
+    setOvertime,
   };
 }

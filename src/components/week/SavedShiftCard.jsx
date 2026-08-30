@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { formatCents } from "@/lib/formatters/currency";
 import { formatShiftDay } from "@/lib/formatters/date";
 import { formatDurationCompact } from "@/lib/formatters/duration";
+import { formatMultiplier } from "@/lib/formatters/overtime";
 import { formatTime } from "@/lib/formatters/time";
 import { deriveShift } from "@/lib/shifts/savedShift";
 
@@ -24,9 +25,17 @@ export const DELETE = "delete";
  * one card be open at a time, so an editor is never lost behind another. The
  * card gives focus back to the action that opened it when it closes, so the
  * keyboard ends up where it started.
+ *
+ * `pay` is how the week priced this shift. It is the week's business rather
+ * than the shift's, because overtime depends on the hours worked before it: the
+ * same eight hours are worth one thing on a Monday and another on the Friday
+ * that crosses the threshold. Without it the card falls back to the shift's own
+ * base pay, which is the same number whenever overtime is switched off.
  */
 export default function SavedShiftCard({
   shift,
+  pay = null,
+  overtime = null,
   mode = null,
   onOpen,
   onClose,
@@ -54,6 +63,13 @@ export default function SavedShiftCard({
   if (derived === null) return null;
 
   const day = formatShiftDay(shift.date);
+  // What this shift was actually paid, which is the week's answer where it has
+  // one — a shift can be part regular and part overtime.
+  const payCents = pay === null ? derived.basePayCents : pay.payCents;
+  // Overtime is only ever named where the week has both priced this shift and
+  // been told how it prices overtime.
+  const overtimeMinutes =
+    pay === null || overtime === null ? 0 : pay.overtimeMinutes;
   // Every card offers the same three words, so each says which shift it means.
   const name = `${day}, ${formatTime(shift.startTime)}`;
   const questionId = `shift-${shift.id}-confirm`;
@@ -89,13 +105,21 @@ export default function SavedShiftCard({
         )}
       </p>
       <p className='wagez-shift-totals'>
-        <span className='wagez-shift-duration'>
-          {formatDurationCompact(derived.paidMinutes)}
-        </span>
-        {derived.basePayCents === null ? null : (
-          <span className='wagez-shift-pay'>
-            {formatCents(derived.basePayCents)}
+        <span className='wagez-shift-hours'>
+          <span className='wagez-shift-duration'>
+            {formatDurationCompact(derived.paidMinutes)}
           </span>
+          {/* Where the week's threshold fell, said on the shift it fell in. */}
+          {overtimeMinutes === 0 ? null : (
+            <span className='wagez-shift-overtime'>
+              {" "}
+              {formatDurationCompact(overtimeMinutes)} at{" "}
+              {formatMultiplier(overtime.multiplier)}
+            </span>
+          )}
+        </span>
+        {payCents === null ? null : (
+          <span className='wagez-shift-pay'>{formatCents(payCents)}</span>
         )}
       </p>
 

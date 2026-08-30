@@ -73,11 +73,28 @@ describe("calculatePayCents", () => {
     expect(calculatePayCents(0, 2200)).toBe(0);
   });
 
+  it("pays a multiple of the rate when it is given one", () => {
+    // Six hours at $20, at time and a half.
+    expect(calculatePayCents(360, 2000, 1.5)).toBe(18000);
+    expect(calculatePayCents(480, 2000, 2)).toBe(32000);
+  });
+
+  it("pays the rate itself when it is not", () => {
+    expect(calculatePayCents(480, 2000, 1)).toBe(calculatePayCents(480, 2000));
+  });
+
+  it("still rounds once, at the end, with a multiplier", () => {
+    // 452 minutes at $22/hour × 1.5 is $248.60.
+    expect(calculatePayCents(452, 2200, 1.5)).toBe(24860);
+  });
+
   it("rejects invalid arguments", () => {
     expect(calculatePayCents(-1, 2200)).toBeNull();
     expect(calculatePayCents(480, -1)).toBeNull();
     expect(calculatePayCents(1.5, 2200)).toBeNull();
     expect(calculatePayCents(480, 22.5)).toBeNull();
     expect(calculatePayCents(null, 2200)).toBeNull();
+    expect(calculatePayCents(480, 2200, -1)).toBeNull();
+    expect(calculatePayCents(480, 2200, "1.5")).toBeNull();
   });
 });

@@ -41,10 +41,21 @@ export function parseRateCents(value) {
 
 /**
  * Pay for a number of paid minutes at an hourly rate, rounded once at the end.
+ *
+ * `multiplier` is what those minutes are worth against the rate — one by
+ * default, and whatever the user has chosen for the overtime part of a week.
+ *
  * @returns {number|null} integer cents.
  */
-export function calculatePayCents(paidMinutes, hourlyRateCents) {
+export function calculatePayCents(
+  paidMinutes,
+  hourlyRateCents,
+  multiplier = 1,
+) {
   if (!Number.isInteger(paidMinutes) || paidMinutes < 0) return null;
   if (!Number.isInteger(hourlyRateCents) || hourlyRateCents < 0) return null;
-  return Math.round((paidMinutes * hourlyRateCents) / MINUTES_PER_HOUR);
+  if (!Number.isFinite(multiplier) || multiplier < 0) return null;
+  return Math.round(
+    (paidMinutes * hourlyRateCents * multiplier) / MINUTES_PER_HOUR,
+  );
 }

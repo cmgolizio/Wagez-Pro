@@ -10,6 +10,10 @@
  * defaults instead of taking the application down with it.
  */
 
+import {
+  DEFAULT_OVERTIME,
+  normalizeOvertime,
+} from "@/lib/calculations/overtime";
 import { SUNDAY, MONDAY } from "@/lib/dates/isoDate";
 import { normalizeSavedShift } from "@/lib/shifts/savedShift";
 
@@ -18,13 +22,15 @@ export const STORAGE_KEY = "wagez:v2";
 export const STORAGE_VERSION = 1;
 
 /**
- * A Wagez nobody has configured: no rate of its own, and a week that begins on
- * a Sunday. `defaultHourlyRateCents` is null rather than zero — zero is a rate
- * somebody could mean, and Wagez never invents one.
+ * A Wagez nobody has configured: no rate of its own, a week that begins on a
+ * Sunday, and overtime left switched off. `defaultHourlyRateCents` is null
+ * rather than zero — zero is a rate somebody could mean, and Wagez never
+ * invents one.
  */
 export const DEFAULT_SETTINGS = {
   defaultHourlyRateCents: null,
   weekStartsOn: SUNDAY,
+  overtime: DEFAULT_OVERTIME,
 };
 
 const WEEK_STARTS = [SUNDAY, MONDAY];
@@ -71,6 +77,7 @@ function normalizeSettings(value) {
     weekStartsOn: WEEK_STARTS.includes(settings.weekStartsOn)
       ? settings.weekStartsOn
       : DEFAULT_SETTINGS.weekStartsOn,
+    overtime: normalizeOvertime(settings.overtime),
   };
 }
 

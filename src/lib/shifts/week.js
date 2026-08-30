@@ -7,6 +7,10 @@
  * that lies is worse than no weekly total at all.
  */
 
+import {
+  DEFAULT_OVERTIME,
+  allocateOvertime,
+} from "@/lib/calculations/overtime";
 import { SUNDAY, endOfWeek, startOfWeek } from "@/lib/dates/isoDate";
 
 import { deriveShift } from "./savedShift";
@@ -73,35 +77,90 @@ export function groupShiftsByWeek(shifts, weekStartsOn = SUNDAY) {
 }
 
 /**
- * What a set of shifts adds up to.
+ * A set of shifts, each worked out and each priced.
+ *
+ * The shifts are put in the order they were worked before anything is counted:
+ * overtime is a running total across a week, so the order it is counted in is
+ * part of the answer, and insertion order is never that order.
+ *
+ * A shift that no longer makes sense is dropped rather than guessed at, exactly
+ * as it is everywhere else a stored shift is read.
+ *
+ * @param {object[]} shifts saved shifts.
+ * @param {object} [overtime] the user's overtime settings. Left out, or off,
+ *   every minute is a regular minute and every shift is paid its base pay.
+ * @returns {{shift: object, derived: object, pay: object}[]} in chronological
+ *   order.
+ */
+export function allocateShifts(shifts, overtime = DEFAULT_OVERTIME) {
+  const worked = [];
+
+  for (const shift of sortShifts(shifts)) {
+    const derived = deriveShift(shift);
+    if (derived !== null) worked.push({ shift, derived });
+  }
+
+  const allocation = allocateOvertime(
+    worked.map((entry) => entry.derived),
+    overtime,
+  );
+
+  return worked.map((entry, index) => ({ ...entry, pay: allocation[index] }));
+}
+
+/**
+ * What a week of already-priced shifts adds up to.
  *
  * Pay is only counted for the shifts that actually have a rate: Wagez never
- * invents one, so a week of unpaid-rate shifts reports its hours and no money.
+ * invents one, so a week of rateless shifts reports its hours and no money.
  *
+ * @param {{derived: object, pay: object}[]} allocated from
+ *   {@link allocateShifts}.
  * @returns {{shiftCount: number, elapsedMinutes: number, breakMinutes: number,
- *   paidMinutes: number, payCents: number|null}}
+ *   paidMinutes: number, regularMinutes: number, overtimeMinutes: number,
+ *   payCents: number|null, regularPayCents: number|null,
+ *   overtimePayCents: number|null}}
  */
-export function summarizeShifts(shifts) {
+export function summarizeAllocated(allocated) {
   const totals = {
     shiftCount: 0,
     elapsedMinutes: 0,
     breakMinutes: 0,
     paidMinutes: 0,
+    regularMinutes: 0,
+    overtimeMinutes: 0,
     payCents: null,
+    regularPayCents: null,
+    overtimePayCents: null,
   };
 
-  for (const shift of shifts) {
-    const derived = deriveShift(shift);
-    if (derived === null) continue;
-
+  for (const { derived, pay } of allocated) {
     totals.shiftCount += 1;
     totals.elapsedMinutes += derived.elapsedMinutes;
     totals.breakMinutes += derived.breakMinutes;
     totals.paidMinutes += derived.paidMinutes;
-    if (derived.basePayCents !== null) {
-      totals.payCents = (totals.payCents ?? 0) + derived.basePayCents;
+    totals.regularMinutes += pay.regularMinutes;
+    totals.overtimeMinutes += pay.overtimeMinutes;
+
+    if (pay.payCents !== null) {
+      totals.payCents = (totals.payCents ?? 0) + pay.payCents;
+      totals.regularPayCents =
+        (totals.regularPayCents ?? 0) + pay.regularPayCents;
+      totals.overtimePayCents =
+        (totals.overtimePayCents ?? 0) + pay.overtimePayCents;
     }
   }
 
   return totals;
+}
+
+/**
+ * What a set of shifts adds up to.
+ *
+ * @param {object[]} shifts
+ * @param {object} [overtime] the user's overtime settings.
+ * @returns {object} see {@link summarizeAllocated}.
+ */
+export function summarizeShifts(shifts, overtime = DEFAULT_OVERTIME) {
+  return summarizeAllocated(allocateShifts(shifts, overtime));
 }

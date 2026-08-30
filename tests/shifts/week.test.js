@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { MONDAY } from "@/lib/dates/isoDate";
 import {
+  allocateShifts,
   groupShiftsByWeek,
   shiftsForWeek,
   sortShifts,
@@ -182,7 +183,11 @@ describe("summarizeShifts", () => {
       elapsedMinutes: 0,
       breakMinutes: 0,
       paidMinutes: 0,
+      regularMinutes: 0,
+      overtimeMinutes: 0,
       payCents: null,
+      regularPayCents: null,
+      overtimePayCents: null,
     });
   });
 
@@ -191,5 +196,115 @@ describe("summarizeShifts", () => {
 
     expect(summarizeShifts([broken, TUESDAY_SHIFT]).shiftCount).toBe(1);
     expect(summarizeShifts([broken, TUESDAY_SHIFT]).payCents).toBe(16000);
+  });
+});
+
+/** A week that has overtime switched on, at the usual forty hours and 1.5×. */
+const OVERTIME = { enabled: true, thresholdMinutes: 2400, multiplier: 1.5 };
+
+/** Eight hours at $20, on the nth day of the week beginning Sunday 16 August. */
+const day = (id, offset, extra = {}) =>
+  shift(id, `2026-08-${16 + offset}`, "09:00", "17:00", extra);
+
+/** Five eight-hour days, Monday to Friday: forty hours exactly. */
+const fortyHours = [
+  day("1", 1),
+  day("2", 2),
+  day("3", 3),
+  day("4", 4),
+  day("5", 5),
+];
+
+describe("a week with overtime", () => {
+  it("changes nothing at all while it is switched off", () => {
+    const week = [...fortyHours, day("6", 6)];
+
+    expect(summarizeShifts(week)).toEqual(summarizeShifts(week, undefined));
+    expect(summarizeShifts(week).payCents).toBe(48 * 2000);
+    expect(summarizeShifts(week).overtimeMinutes).toBe(0);
+  });
+
+  it("reaches the threshold without going over it", () => {
+    const totals = summarizeShifts(fortyHours, OVERTIME);
+
+    expect(totals.regularMinutes).toBe(2400);
+    expect(totals.overtimeMinutes).toBe(0);
+    expect(totals.payCents).toBe(80000);
+  });
+
+  it("pays the hours past the threshold at the multiplier", () => {
+    // A sixth eight-hour day: forty regular hours and eight overtime.
+    const totals = summarizeShifts([...fortyHours, day("6", 6)], OVERTIME);
+
+    expect(totals.regularMinutes).toBe(2400);
+    expect(totals.overtimeMinutes).toBe(480);
+    // $800 + 8 × $20 × 1.5.
+    expect(totals.regularPayCents).toBe(80000);
+    expect(totals.overtimePayCents).toBe(24000);
+    expect(totals.payCents).toBe(104000);
+  });
+
+  it("counts the week in the order it was worked, not the order it was saved", () => {
+    const week = [day("6", 6, { hourlyRateCents: 3000 }), ...fortyHours];
+
+    // The Saturday is the shift that crosses the threshold wherever it sits in
+    // the array, so it is the one paid at time and a half.
+    const [last] = allocateShifts(week, OVERTIME).slice(-1);
+    expect(last.shift.id).toBe("6");
+    expect(last.pay.overtimeMinutes).toBe(480);
+    expect(summarizeShifts(week, OVERTIME).overtimePayCents).toBe(36000);
+  });
+
+  it("splits the shift the threshold falls in the middle of", () => {
+    // Four eight-hour days is thirty-two hours; the six-hour Friday crosses.
+    const week = [
+      day("1", 1),
+      day("2", 2),
+      day("3", 3),
+      day("4", 4),
+      shift("5", "2026-08-21", "09:00", "19:00"),
+    ];
+
+    const friday = allocateShifts(week, OVERTIME).at(-1);
+    expect(friday.pay.regularMinutes).toBe(480);
+    expect(friday.pay.overtimeMinutes).toBe(120);
+    // 8 × $20 + 2 × $20 × 1.5.
+    expect(friday.pay.payCents).toBe(16000 + 6000);
+  });
+
+  it("keeps unpaid breaks out of the threshold", () => {
+    // Five nine-hour days with an hour unpaid in each: forty hours paid.
+    const week = fortyHours.map((entry, index) =>
+      shift(String(index + 1), entry.date, "09:00", "19:00", {
+        breakMinutes: 120,
+      }),
+    );
+
+    const totals = summarizeShifts(week, OVERTIME);
+    expect(totals.elapsedMinutes).toBe(3000);
+    expect(totals.breakMinutes).toBe(600);
+    expect(totals.paidMinutes).toBe(2400);
+    expect(totals.overtimeMinutes).toBe(0);
+    expect(totals.payCents).toBe(80000);
+  });
+
+  it("pays each shift's overtime at that shift's own rate", () => {
+    const week = [...fortyHours, day("6", 6, { hourlyRateCents: 4000 })];
+    const totals = summarizeShifts(week, OVERTIME);
+
+    // 8 × $40 × 1.5, at the rate of the day the overtime was worked.
+    expect(totals.overtimePayCents).toBe(48000);
+    expect(totals.payCents).toBe(80000 + 48000);
+  });
+
+  it("adds the halves of every shift up to the week's own total", () => {
+    const totals = summarizeShifts([...fortyHours, day("6", 6)], OVERTIME);
+
+    expect(totals.regularPayCents + totals.overtimePayCents).toBe(
+      totals.payCents,
+    );
+    expect(totals.regularMinutes + totals.overtimeMinutes).toBe(
+      totals.paidMinutes,
+    );
   });
 });

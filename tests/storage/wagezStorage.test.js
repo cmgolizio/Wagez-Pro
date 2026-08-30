@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { DEFAULT_OVERTIME } from "@/lib/calculations/overtime";
 import { SUNDAY } from "@/lib/dates/isoDate";
 import {
   STORAGE_KEY,
@@ -47,8 +48,13 @@ describe("defaults", () => {
   it("starts empty, at the current version", () => {
     expect(defaultWagezData()).toEqual({
       version: STORAGE_VERSION,
-      // No rate of its own: Wagez opens on nothing until it is told otherwise.
-      settings: { defaultHourlyRateCents: null, weekStartsOn: SUNDAY },
+      // No rate of its own: Wagez opens on nothing until it is told otherwise,
+      // and overtime is off until somebody asks for it.
+      settings: {
+        defaultHourlyRateCents: null,
+        weekStartsOn: SUNDAY,
+        overtime: DEFAULT_OVERTIME,
+      },
       shifts: [],
     });
   });
@@ -204,7 +210,35 @@ describe("settings", () => {
     );
 
     expect(data.settings.defaultHourlyRateCents).toBeNull();
+    // Overtime arrived after this week was saved, and the week is untouched.
+    expect(data.settings.overtime).toEqual(DEFAULT_OVERTIME);
     expect(data.shifts).toHaveLength(1);
+  });
+});
+
+describe("overtime settings", () => {
+  const overtime = { enabled: true, thresholdMinutes: 2250, multiplier: 2 };
+
+  it("is switched off on a Wagez nobody has configured", () => {
+    expect(defaultWagezData().settings.overtime.enabled).toBe(false);
+  });
+
+  it("keeps a threshold and a multiplier through a round trip", () => {
+    const storage = fakeStorage();
+
+    saveWagezData({ ...defaultWagezData(), settings: { overtime } }, storage);
+
+    expect(loadWagezData(storage).settings.overtime).toEqual(overtime);
+  });
+
+  it("reads settings it did not write as the defaults", () => {
+    for (const value of [null, "on", { enabled: true, multiplier: 0 }]) {
+      const settings = validateStoredData({ settings: { overtime: value } })
+        .settings.overtime;
+
+      expect(settings.thresholdMinutes).toBe(DEFAULT_OVERTIME.thresholdMinutes);
+      expect(settings.multiplier).toBe(DEFAULT_OVERTIME.multiplier);
+    }
   });
 });
 
