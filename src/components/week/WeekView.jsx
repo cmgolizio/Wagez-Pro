@@ -9,6 +9,7 @@ import {
   todayIsoDate,
 } from "@/lib/dates/isoDate";
 import { formatWeekRange } from "@/lib/formatters/date";
+import { formatWeekSummary } from "@/lib/share/weekSummary";
 import {
   allocateShifts,
   groupShiftsByWeek,
@@ -19,6 +20,7 @@ import {
 import OvertimeSettings from "@/components/settings/OvertimeSettings";
 
 import SavedShiftCard from "./SavedShiftCard";
+import ShareWeek from "./ShareWeek";
 import WeekSummary from "./WeekSummary";
 
 /**
@@ -129,7 +131,11 @@ export default function WeekView({
       </nav>
 
       <div className='wagez-week-body'>
-        <WeekSummary totals={totals} overtime={overtime} />
+        {/* The totals and the one action that hands them to somebody else. */}
+        <div className='wagez-week-totals'>
+          <WeekSummary totals={totals} overtime={overtime} />
+          <ShareWeek summary={formatWeekSummary(weekStart, totals, overtime)} />
+        </div>
 
         {weekShifts.length === 0 ? (
           <div className='wagez-week-empty'>
