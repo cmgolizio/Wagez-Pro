@@ -39,15 +39,30 @@ Open <http://localhost:3000>.
 ## Project layout
 
 ```
-src/app/         App Router routes, layout, global styles and design tokens
+src/app/         App Router routes, layout, global styles, design tokens, manifest
 src/components/  React components, grouped by view
 src/lib/         Pure logic: calculations, formatters, dates, time entry — no React
+public/          Static files: app icons and the service worker
+scripts/         One-off asset generation — the app icons are drawn here
 tests/           Vitest unit and component tests
 docs/            build-plan.md — the authoritative specification
 ```
 
 Calculation, formatting and presentation stay in separate layers: nothing in
 `src/lib/` imports React, and components never re-implement the math.
+
+## Installing and offline
+
+Wagez is a progressive web app: it can be added to a home screen and opens in a
+window of its own. `public/sw.js` keeps a copy of the application on the device
+when it is first visited, so the calculator, the week and everything saved in it
+keep working with no connection. The worker is registered in production builds
+only — `npm run dev` unregisters it instead, so the dev server is never answered
+by a copy of a previous build.
+
+The icons are drawn from the Wagez gradient by `scripts/generate-icons.mjs`. Run
+`node scripts/generate-icons.mjs` after changing it and commit the result; the
+build does not regenerate them.
 
 ## Contributing
 

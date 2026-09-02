@@ -1,5 +1,7 @@
 import { Geist } from "next/font/google";
 
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+
 import "./globals.css";
 
 const wagezSans = Geist({
@@ -22,6 +24,17 @@ export const metadata = {
     siteName: "Wagez",
     type: "website",
   },
+  // iOS installs from the share sheet rather than from the manifest, and takes
+  // what it needs from these instead: its own icon, its own name under it, and
+  // a window with no browser chrome.
+  appleWebApp: {
+    capable: true,
+    title: "Wagez",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport = {
@@ -36,7 +49,10 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang='en' className={wagezSans.variable}>
-      <body className='antialiased'>{children}</body>
+      <body className='antialiased'>
+        {children}
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }
