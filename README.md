@@ -51,6 +51,26 @@ docs/            build-plan.md — the authoritative specification
 Calculation, formatting and presentation stay in separate layers: nothing in
 `src/lib/` imports React, and components never re-implement the math.
 
+## Accessibility
+
+Wagez is operable with a keyboard alone, and every control it replaces in place
+hands its focus on to whatever took its place — saving a shift, undoing it,
+editing one into another week, deleting one — so the keyboard is never dropped
+on the page body.
+
+Two rules shape the responsive behaviour:
+
+- **Controls stop shrinking before the type does.** Everything scales to fit the
+  screen, but a control never goes below a 2.25rem target. Where a screen cannot
+  hold that — a phone on its side — `useFitToViewport` lowers the floor, to
+  1.5rem at the very least, rather than leaving the calculator unfittable.
+- **Scrolling is the last resort, never clipping.** The page itself never
+  scrolls; the calculator and the week scroll inside themselves on the screens
+  where shrinking has run out of room, so nothing is ever cut off.
+
+Text colours are chosen against the darkest stop of the gradient, which is the
+worst ground any of them lands on: every one clears 4.5:1 there.
+
 ## Installing and offline
 
 Wagez is a progressive web app: it can be added to a home screen and opens in a

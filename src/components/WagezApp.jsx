@@ -37,7 +37,9 @@ export default function WagezApp() {
 
   return (
     <main className='wagez-shell wagez-safe-area flex w-full flex-col gap-3'>
-      <header className='flex shrink-0 items-center justify-between gap-3'>
+      {/* Wrapping is for the extremes — a very narrow phone, or a page zoomed
+          well in — where the name and the two views cannot share a line. */}
+      <header className='flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1'>
         <h1 className='wagez-brand'>Wagez</h1>
         <ViewSwitch view={view} views={VIEWS} onChange={setView} />
       </header>

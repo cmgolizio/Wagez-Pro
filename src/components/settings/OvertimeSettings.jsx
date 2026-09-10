@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   parseMultiplier,
@@ -43,6 +43,13 @@ export default function OvertimeSettings({ overtime, onChange }) {
   const [multiplier, setMultiplier] = useState(() =>
     formatMultiplierInput(overtime.multiplier),
   );
+  const bodyRef = useRef(null);
+
+  // The setting lives at the foot of the week, so on a short screen it opens
+  // below the fold. Bring it up to where it was opened from.
+  useEffect(() => {
+    if (open) bodyRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [open]);
 
   const thresholdError =
     parseThresholdMinutes(hours) === null ? THRESHOLD_ERROR : undefined;
@@ -95,7 +102,11 @@ export default function OvertimeSettings({ overtime, onChange }) {
       </button>
 
       {open ? (
-        <div className='wagez-settings-body' id='overtime-settings'>
+        <div
+          ref={bodyRef}
+          className='wagez-settings-body'
+          id='overtime-settings'
+        >
           <button
             type='button'
             role='switch'

@@ -1,6 +1,10 @@
+import { useEffect, useRef } from "react";
+
 import { formatCents } from "@/lib/formatters/currency";
 import { formatShiftDay } from "@/lib/formatters/date";
 import { formatDuration } from "@/lib/formatters/duration";
+
+import { focusIfLost } from "@/components/ui/focus";
 
 import DayStrip from "./DayStrip";
 
@@ -38,6 +42,7 @@ const DAY_STRIP = "saved-day-strip";
  */
 export default function ResultDisplay({
   result,
+  active = true,
   stale = false,
   steppedBack = false,
   onRecall,
@@ -49,6 +54,26 @@ export default function ResultDisplay({
   onUndo,
   onShowWeek,
 }) {
+  const addRef = useRef(null);
+  const savedDayRef = useRef(null);
+
+  /*
+    Saving, undoing and choosing a day all replace the control that was pressed
+    with the next thing to do. Focus follows that, so the keyboard is never left
+    on the body after a press — see `focusIfLost` for why only then.
+
+    Only while this screen is the one on show, though. Deleting the shift over
+    in the week takes the confirmation here down with it, and the keyboard
+    belongs to the week that press was made in.
+  */
+  const isSaved = savedDate !== null;
+  useEffect(() => {
+    if (active) focusIfLost(isSaved ? savedDayRef.current : addRef.current);
+  }, [active, isSaved]);
+  useEffect(() => {
+    if (active && !dayOpen) focusIfLost(savedDayRef.current);
+  }, [active, dayOpen, savedDate]);
+
   /** A press on one of the buttons in here is not a press on the answer. */
   function handleClick(event) {
     if (event.target.closest("button") === null) onRecall();
@@ -102,6 +127,7 @@ export default function ResultDisplay({
             <div className='wagez-result-actions'>
               {savedDate === null ? (
                 <button
+                  ref={addRef}
                   type='button'
                   className='wagez-quiet-button'
                   onClick={onAddToWeek}
@@ -113,6 +139,7 @@ export default function ResultDisplay({
                   <p className='wagez-saved'>
                     <span className='wagez-caption'>Added to</span>
                     <button
+                      ref={savedDayRef}
                       type='button'
                       className='wagez-saved-day'
                       aria-expanded={dayOpen}

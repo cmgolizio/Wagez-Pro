@@ -22,7 +22,11 @@ export default function DayStrip({ id, value, onChange }) {
   );
 
   return (
-    <div className='wagez-day-strip'>
+    // The answer above announces itself as it changes, and this opens inside
+    // it. Seven days and a calendar are not news, though — they are the
+    // control the user just asked for — so they are read when they are reached
+    // rather than all at once on the way past.
+    <div className='wagez-day-strip' aria-live='off'>
       <div className='wagez-day-row' role='group' aria-label='Day'>
         {days.map((date) => (
           <button

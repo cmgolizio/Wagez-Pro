@@ -17,6 +17,7 @@ export default function DateField({
   error,
   onChange,
   autoFocus = false,
+  ref,
 }) {
   const errorId = `${id}-error`;
   const name = label.replace(/:$/, "");
@@ -28,6 +29,7 @@ export default function DateField({
       </label>
       <div className='wagez-field'>
         <input
+          ref={ref}
           id={id}
           type='date'
           value={value}

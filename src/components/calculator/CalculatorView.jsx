@@ -320,6 +320,7 @@ export default function CalculatorView({
       />
       <ResultDisplay
         result={result}
+        active={active}
         stale={stale}
         steppedBack={!answerLeads}
         onRecall={recallResult}

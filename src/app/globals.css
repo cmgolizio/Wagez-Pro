@@ -13,11 +13,23 @@
   --wagez-bg-end: #60efff;
 
   --wagez-ink: #16161d;
-  --wagez-muted: #717171;
+  /*
+    Quiet text. The legacy grey (#717171) reaches only 3.6:1 against the darkest
+    stop of the gradient, so quiet is said with the ink's own colour at two
+    thirds strength instead — 5.2:1 on the gradient, more on a panel — and the
+    words sit in the light of whatever they are written on rather than beside it.
+  */
+  --wagez-muted: rgba(22, 22, 29, 0.66);
   /* Legacy earnings green (#00ad07) deepened to stay readable on the gradient. */
   --wagez-money: #00700a;
   --wagez-alert: #b3261e;
   --wagez-action: #736bfb;
+  /*
+    The same purple, deepened for text. #736bfb is a button colour: it carries
+    white at any size, but as words on a light ground it manages only 2.9:1.
+    This is the colour that purple has to be to be read — 5.1:1 on the gradient.
+  */
+  --wagez-action-ink: #4a3fd6;
 
   --wagez-gradient: linear-gradient(
     315deg,
@@ -40,6 +52,34 @@
   --wagez-emphasis: 1;
   --wagez-entered-scale: 1;
   --wagez-fit: 1;
+
+  /*
+    The smallest a control is allowed to get.
+
+    Everything in Wagez is sized off `--wagez-scale`, and on a short screen that
+    multiplier goes a long way down — but a button that shrinks with the type
+    stops being something a thumb can hit. Controls therefore stop shrinking at
+    a floor: 2.75rem is a full 44px target, which is what they are at any
+    ordinary size, and 2.25rem is as small as one becomes on a screen that
+    cannot hold that.
+
+    Some screens cannot hold even that — a phone on its side has barely 300
+    points of height to put a whole shift in. `useFitToViewport` lowers the
+    floor to 1.5rem, the smallest target anyone should be asked to hit, on the
+    screens where the larger one does not fit, so the floor costs nobody a
+    calculator that would otherwise have fitted.
+
+    `--wagez-tap-fit` is the same floor for the controls that are sized off the
+    fit alone, because a target stays a target whichever region has the screen.
+
+    A custom property is resolved where it is *declared*, not where it is used,
+    so this one is only ever as good as the scale in force beside it: declared
+    here it means "a control at the unscaled size", which is what everything
+    outside the calculator is. Each region that sets a scale of its own restates
+    it underneath, and the two travel together from there.
+  */
+  --wagez-tap-floor: 2.25rem;
+  --wagez-tap: max(var(--wagez-tap-floor), calc(2.75rem * var(--wagez-scale)));
 
   /*
     Corners are nearly square. The fillet is only large enough to read as
@@ -70,8 +110,9 @@
   dynamic mobile browser chrome. <html> carries a flat fallback so overscroll
   never exposes white.
 
-  Nothing scrolls, anywhere: the calculator fits the screen it is on by
-  shrinking to it, so a scrollbar would only ever mean something had gone wrong.
+  The page itself never scrolls: the app is exactly one screen tall, and the
+  two regions that can outgrow it — the calculator stage and the week — scroll
+  inside themselves rather than moving the page around underneath the user.
 */
 html,
 body {
@@ -131,10 +172,32 @@ summary {
   The three regions, centred as a group on whatever is left of the screen. The
   children keep their natural height so overflow is measurable — that is what
   `useFitToViewport` reads to decide how far everything has to shrink.
+
+  Shrinking stops where the controls reach their floor, which on a short screen
+  can be before everything fits. The last resort is therefore a scroll rather
+  than a clip: the screen almost never uses it, and content that has run out of
+  room is reachable instead of gone.
 */
 .wagez-stage {
+  /* The fit is written here, so this is where a target measured against it can
+     be worked out. See `--wagez-tap` for why it cannot live at the root. */
+  --wagez-tap-fit: max(
+    var(--wagez-tap-floor),
+    calc(2.75rem * var(--wagez-fit))
+  );
   gap: calc(1rem * var(--wagez-fit));
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /*
+    Centred while it fits, and packed to the top when it does not. Content
+    centred past the top of a scroll container cannot be scrolled back to, so
+    what overflows would be out of reach — and the overflow above the fold is
+    invisible to `scrollHeight`, which is what the fit is measured with, so the
+    region would only ever be told about half of its own problem.
+  */
+  justify-content: center;
+  justify-content: safe center;
 }
 
 .wagez-stage > * {
@@ -150,12 +213,14 @@ summary {
 .wagez-entered,
 .wagez-result {
   --wagez-scale: calc(var(--wagez-emphasis) * var(--wagez-fit));
+  --wagez-tap: max(var(--wagez-tap-floor), calc(2.75rem * var(--wagez-scale)));
 }
 
 .wagez-panel {
   --wagez-scale: calc(
     var(--wagez-emphasis) * var(--wagez-entered-scale) * var(--wagez-fit)
   );
+  --wagez-tap: max(var(--wagez-tap-floor), calc(2.75rem * var(--wagez-scale)));
 }
 
 /*
@@ -405,7 +470,15 @@ summary {
   Stepped back, the panel is a single target: a click anywhere on it brings the
   editor back rather than working one of the shrunken controls by accident.
   Keyboard users reach the controls by tabbing, which restores it on focus.
+
+  Nothing in here can be pressed, so nothing in here needs to stay big enough to
+  press: the floor is lifted and the panel shrinks the whole way out of the
+  answer's way, which is the entire point of it stepping back.
 */
+[data-stage="result"] .wagez-panel {
+  --wagez-tap-floor: 0px;
+}
+
 [data-stage="result"] .wagez-panel > * {
   pointer-events: none;
 }
@@ -437,13 +510,13 @@ summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(2.75rem * var(--wagez-scale));
+  min-height: var(--wagez-tap);
   padding-inline: calc(0.5rem * var(--wagez-scale));
   border-radius: var(--wagez-radius-control);
   font-size: calc(0.8125rem * var(--wagez-scale));
   font-weight: 800;
   letter-spacing: 0.02em;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
   transition:
     background-color 140ms ease,
     color 140ms ease;
@@ -486,7 +559,7 @@ summary {
   display: flex;
   align-items: center;
   gap: calc(0.35rem * var(--wagez-scale));
-  min-height: calc(3.125rem * var(--wagez-scale));
+  min-height: max(var(--wagez-tap-floor), calc(3.125rem * var(--wagez-scale)));
   padding: calc(0.25rem * var(--wagez-scale)) calc(0.6rem * var(--wagez-scale));
   border-radius: var(--wagez-radius-field);
   background-color: rgba(255, 255, 255, 0.82);
@@ -506,7 +579,7 @@ summary {
 .wagez-field input {
   flex: 1 1 auto;
   align-self: stretch;
-  min-height: calc(2.75rem * var(--wagez-scale));
+  min-height: var(--wagez-tap);
   min-width: 0;
   border: 0;
   background-color: transparent;
@@ -537,7 +610,7 @@ summary {
 .wagez-field input.wagez-time-segment {
   flex: 0 0 auto;
   margin-inline-start: 0;
-  width: calc(2.75rem * var(--wagez-scale));
+  width: var(--wagez-tap);
   padding: 0;
   text-align: center;
   font-size: calc(1.5rem * var(--wagez-scale));
@@ -546,7 +619,7 @@ summary {
 }
 
 .wagez-field input.wagez-time-segment::placeholder {
-  color: rgba(22, 22, 29, 0.45);
+  color: var(--wagez-muted);
   font-weight: 700;
 }
 
@@ -568,7 +641,7 @@ summary {
   font-size: calc(1.5rem * var(--wagez-scale));
   font-weight: 800;
   line-height: 1;
-  color: rgba(22, 22, 29, 0.45);
+  color: var(--wagez-muted);
 }
 
 .wagez-meridiem {
@@ -580,8 +653,8 @@ summary {
 }
 
 .wagez-meridiem button {
-  min-width: calc(2.75rem * var(--wagez-scale));
-  min-height: calc(2.75rem * var(--wagez-scale));
+  min-width: var(--wagez-tap);
+  min-height: var(--wagez-tap);
   border-radius: var(--wagez-radius-control);
   background-color: rgba(22, 22, 29, 0.07);
   font-size: calc(0.9375rem * var(--wagez-scale));
@@ -611,7 +684,7 @@ summary {
 
 /* Quick minutes and Now: one tap, still a full touch target. */
 .wagez-chip {
-  min-height: calc(2.75rem * var(--wagez-scale));
+  min-height: var(--wagez-tap);
   padding-inline: calc(0.35rem * var(--wagez-scale));
   border-radius: var(--wagez-radius-control);
   background-color: rgba(255, 255, 255, 0.72);
@@ -679,14 +752,19 @@ summary {
 
 .wagez-do-math {
   width: 100%;
-  min-height: calc(3.5rem * var(--wagez-scale));
+  min-height: max(var(--wagez-tap-floor), calc(3.5rem * var(--wagez-scale)));
   border-radius: var(--wagez-radius-field);
   background-color: var(--wagez-action);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
     0 10px 22px -12px rgba(51, 44, 150, 0.75);
   color: #ffffff;
-  font-size: calc(1.375rem * var(--wagez-scale));
+  /*
+    White on the Wagez purple is 4.0:1 — enough for large text and not for
+    small, so this never becomes small text. 1.1875rem bold is the floor that
+    keeps it on the right side of that line however far the screen shrinks.
+  */
+  font-size: max(1.1875rem, calc(1.375rem * var(--wagez-scale)));
   font-weight: 800;
   letter-spacing: -0.01em;
   transition:
@@ -710,7 +788,7 @@ summary {
 
 /* Secondary actions: full touch target, no visual competition. */
 .wagez-quiet-button {
-  min-height: calc(2.75rem * var(--wagez-scale));
+  min-height: var(--wagez-tap);
   padding-inline: calc(1rem * var(--wagez-scale));
   border-radius: var(--wagez-radius-control);
   font-size: calc(1rem * var(--wagez-scale));
@@ -790,7 +868,7 @@ summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(2.75rem * var(--wagez-scale));
+  min-height: var(--wagez-tap);
   padding-inline: calc(0.5rem * var(--wagez-scale));
   border-radius: var(--wagez-radius-control);
   font-size: calc(1rem * var(--wagez-scale));
@@ -801,12 +879,12 @@ summary {
 }
 
 .wagez-reveal:hover {
-  color: var(--wagez-action);
+  color: var(--wagez-action-ink);
 }
 
 /* Open: a square target holding nothing but the X. */
 .wagez-reveal[data-open="true"] {
-  width: calc(2.75rem * var(--wagez-scale));
+  width: var(--wagez-tap);
   padding-inline: 0;
   color: var(--wagez-alert);
 }
@@ -860,6 +938,7 @@ summary {
 */
 .wagez-result-actions {
   --wagez-scale: calc(0.95 * var(--wagez-fit));
+  --wagez-tap: max(var(--wagez-tap-floor), calc(2.75rem * var(--wagez-scale)));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -890,7 +969,7 @@ summary {
 .wagez-saved-day {
   /* Sized off the fit alone: a target stays a target whichever region has the
      screen, and only gives way when the screen itself runs out of room. */
-  min-height: calc(2.75rem * var(--wagez-fit));
+  min-height: var(--wagez-tap-fit);
   padding-inline: calc(0.75rem * var(--wagez-scale));
   border-radius: var(--wagez-radius-control);
   background-color: rgba(255, 255, 255, 0.72);
@@ -946,7 +1025,7 @@ summary {
 }
 
 .wagez-day {
-  min-height: calc(2.75rem * var(--wagez-fit));
+  min-height: var(--wagez-tap-fit);
   border-radius: var(--wagez-radius-control);
   background-color: rgba(255, 255, 255, 0.72);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
@@ -980,14 +1059,27 @@ summary {
 
 /* The calendar underneath: quieter than the days, because it is the rarer way. */
 .wagez-day-date {
-  min-height: calc(2.75rem * var(--wagez-fit));
+  min-height: var(--wagez-tap-fit);
 }
 
+/*
+  A word in a sentence that happens to be a button — "Undo", "See week". It
+  keeps the underline that says so, and carries a target around itself: these
+  are thumb-sized decisions, not footnotes.
+*/
 .wagez-inline-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--wagez-tap-floor);
+  min-height: var(--wagez-tap);
+  padding-inline: calc(0.4rem * var(--wagez-scale));
+  border-radius: var(--wagez-radius-control);
   font-weight: 800;
-  color: var(--wagez-action);
+  color: var(--wagez-action-ink);
   text-decoration: underline;
   text-underline-offset: 3px;
+  transition: color 140ms ease;
 }
 
 .wagez-inline-button:hover {
@@ -1003,8 +1095,12 @@ summary {
   The week.
 
   Bold cards over the gradient rather than rows in a table: this is a list of
-  shifts somebody worked, not a timesheet. Only the list itself scrolls, so the
-  week never pushes the page around.
+  shifts somebody worked, not a timesheet. The week under the navigation is one
+  column that scrolls as a whole, so a screen too short to hold the totals, the
+  shifts and the settings at once — a phone on its side, an open editor, an open
+  setting — hands them all over rather than cutting the bottom one off. The
+  navigation itself stays put: which week you are looking at is never scrolled
+  away from.
 */
 .wagez-week-nav {
   display: flex;
@@ -1014,6 +1110,7 @@ summary {
 }
 
 .wagez-week-nav button {
+  min-width: 2.75rem;
   font-size: 1.5rem;
   line-height: 1;
 }
@@ -1044,6 +1141,15 @@ summary {
   flex-direction: column;
   gap: 0.85rem;
   min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The totals keep their size; the room is found by scrolling, not by squeezing. */
+.wagez-week-totals,
+.wagez-week-list,
+.wagez-settings {
+  flex-shrink: 0;
 }
 
 .wagez-week-totals {
@@ -1083,7 +1189,7 @@ summary {
   column-gap: 0.75rem;
   font-size: clamp(0.8rem, 3.2vw, 0.95rem);
   font-weight: 700;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
 }
 
 .wagez-week-money {
@@ -1098,9 +1204,6 @@ summary {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .wagez-week-empty {
@@ -1150,7 +1253,7 @@ summary {
 .wagez-shift-break {
   font-size: 0.7em;
   font-weight: 700;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
 }
 
 .wagez-shift-totals {
@@ -1178,7 +1281,7 @@ summary {
 .wagez-shift-overtime {
   font-size: 0.8em;
   font-weight: 700;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
 }
 
 .wagez-shift-pay {
@@ -1212,7 +1315,7 @@ summary {
 .wagez-shift-actions .wagez-quiet-button {
   padding-inline: 0.6rem;
   font-size: 0.9375rem;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
 }
 
 .wagez-shift-actions .wagez-quiet-button:hover {
@@ -1263,7 +1366,7 @@ summary {
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
 }
 
 .wagez-shift-form-actions {
@@ -1273,9 +1376,10 @@ summary {
   margin-top: 0.15rem;
 }
 
+/* 1.25rem is the smallest white-on-purple that clears the contrast floor. */
 .wagez-shift-form .wagez-do-math {
   min-height: 3rem;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
 }
 
 /*
@@ -1286,10 +1390,6 @@ summary {
   and the setting currently in force; open, it is the switch and the two numbers
   behind it, and a plain statement of what Wagez is and is not doing with them.
 */
-.wagez-settings {
-  flex-shrink: 0;
-}
-
 .wagez-settings-toggle {
   display: flex;
   align-items: center;
@@ -1303,7 +1403,7 @@ summary {
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
   transition: color 140ms ease;
 }
 
@@ -1365,7 +1465,7 @@ summary {
   font-size: 0.8125rem;
   font-weight: 800;
   text-align: center;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
   transition:
     background-color 140ms ease,
     color 140ms ease;
@@ -1392,7 +1492,7 @@ summary {
   font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.4;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
 }
 
 /*
@@ -1413,7 +1513,7 @@ summary {
   min-height: 1.25rem;
   font-size: 0.85rem;
   font-weight: 700;
-  color: rgba(22, 22, 29, 0.66);
+  color: var(--wagez-muted);
 }
 
 /*
@@ -1439,7 +1539,7 @@ summary {
 }
 
 /*
-  Wide screens.
+  Screens with width to spare.
 
   A phone reads the calculator top to bottom; a laptop has room to put the three
   regions side by side instead — what has been entered on the left, the editor
@@ -1450,8 +1550,14 @@ summary {
   Every region keeps its column whether or not it currently has anything in it,
   so an empty display or an unanswered shift leaves the editor centred instead
   of sliding it to one side.
+
+  A phone on its side gets the same arrangement for the opposite reason. It is
+  not a large screen — it is a short one, and stacking three regions down 390
+  points of height leaves the calculator shrunken to a sixth of its size. Laid
+  out across, the same shift is entered at very nearly a phone's ordinary size.
 */
-@media (min-width: 60rem) and (min-aspect-ratio: 1/1) {
+@media (min-width: 60rem) and (min-aspect-ratio: 1/1),
+  (min-width: 40rem) and (max-height: 34rem) {
   .wagez-shell {
     max-width: 96rem;
   }
@@ -1461,11 +1567,16 @@ summary {
     --wagez-col-editor: 1.5fr;
     --wagez-col-result: 1fr;
     display: grid;
-    grid-template-columns: minmax(0, var(--wagez-col-entered)) minmax(
+    grid-template-columns:
+      minmax(0, var(--wagez-col-entered)) minmax(
         min-content,
         var(--wagez-col-editor)
-      ) minmax(0, var(--wagez-col-result));
+      )
+      minmax(0, var(--wagez-col-result));
+    /* Centred in its row while it fits, and packed to the top when it does
+       not, so nothing ends up above the scroll. */
     align-items: center;
+    align-items: safe center;
     gap: calc(2rem * var(--wagez-fit));
   }
 
@@ -1528,6 +1639,21 @@ summary {
   }
 }
 
+/*
+  Short screens.
+
+  The editor narrows as it shrinks, which on a phone is right — the slab itself
+  gets smaller, rather than the room around it. On a screen that is short rather
+  than small it is exactly wrong: a narrower editor is a taller one, and height
+  is the dimension that has run out. So here it takes the column it has been
+  given and spends the shrinking on height alone.
+*/
+@media (min-width: 40rem) and (max-height: 34rem) {
+  .wagez-stage > .wagez-panel {
+    min-width: min(100%, 24rem);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1536,5 +1662,10 @@ summary {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The press still reads as a press: it changes colour, it just doesn't move. */
+  .wagez-do-math:active {
+    transform: none;
   }
 }

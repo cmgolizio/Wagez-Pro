@@ -42,6 +42,11 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
   );
   const [errors, setErrors] = useState(NO_ERRORS);
   const formRef = useRef(null);
+  const dateRef = useRef(null);
+  const startRef = useRef(null);
+  const endRef = useRef(null);
+  const rateRef = useRef(null);
+  const breakRef = useRef(null);
 
   // A card near the bottom of the week opens into a form taller than the room
   // left under it, so bring the whole of it into view — including the way out.
@@ -68,6 +73,16 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
 
     if (!saved.ok) {
       setErrors(saved.errors);
+      // Put the user on the first thing that needs fixing, as the calculator
+      // does — a form this tall can report a problem off the bottom of it.
+      const firstInvalid = [
+        [saved.errors.date, dateRef],
+        [saved.errors.startTime, startRef],
+        [saved.errors.endTime, endRef],
+        [saved.errors.hourlyRate, rateRef],
+        [saved.errors.breakMinutes, breakRef],
+      ].find(([error]) => error !== undefined);
+      firstInvalid?.[1].current?.focus();
       return;
     }
     onSave(saved.shift);
@@ -89,6 +104,7 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
       <h3 className='wagez-shift-form-title'>{TITLES[mode]}</h3>
 
       <DateField
+        ref={dateRef}
         id={field("date")}
         label='Day:'
         value={draft.date}
@@ -97,6 +113,7 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
         autoFocus
       />
       <TimeField
+        ref={startRef}
         id={field("start")}
         label='Start:'
         value={draft.startTime}
@@ -104,6 +121,7 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
         onChange={(value) => updateDraft("startTime", value)}
       />
       <TimeField
+        ref={endRef}
         id={field("end")}
         label='Stop:'
         value={draft.endTime}
@@ -111,6 +129,7 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
         onChange={(value) => updateDraft("endTime", value)}
       />
       <RateField
+        ref={rateRef}
         id={field("rate")}
         label='Pay Rate:'
         value={draft.hourlyRate}
@@ -118,6 +137,7 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
         onChange={(value) => updateDraft("hourlyRate", value)}
       />
       <BreakField
+        ref={breakRef}
         id={field("break")}
         label='Break:'
         value={draft.breakMinutes}

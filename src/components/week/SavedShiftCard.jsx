@@ -76,7 +76,7 @@ export default function SavedShiftCard({
 
   if (mode === EDIT || mode === DUPLICATE) {
     return (
-      <li className='wagez-shift-card'>
+      <li className='wagez-shift-card' data-shift={shift.id}>
         <SavedShiftForm
           shift={shift}
           mode={mode}
@@ -88,7 +88,9 @@ export default function SavedShiftCard({
   }
 
   return (
-    <li className='wagez-shift-card'>
+    // The week finds a card by the shift it holds, so that a shift moved into
+    // another week can be handed the keyboard once it is drawn there.
+    <li className='wagez-shift-card' data-shift={shift.id}>
       <p className='wagez-shift-day'>{day}</p>
       <p className='wagez-shift-times'>
         {formatTime(shift.startTime)} → {formatTime(shift.endTime)}

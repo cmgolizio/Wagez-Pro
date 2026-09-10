@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   DAYS_PER_WEEK,
@@ -18,10 +18,15 @@ import {
 } from "@/lib/shifts/week";
 
 import OvertimeSettings from "@/components/settings/OvertimeSettings";
+import { focusIfLost } from "@/components/ui/focus";
 
 import SavedShiftCard from "./SavedShiftCard";
+import { EDIT } from "./SavedShiftForm";
 import ShareWeek from "./ShareWeek";
 import WeekSummary from "./WeekSummary";
+
+/** Where the keyboard goes when the shift it was on is no longer anywhere. */
+const THE_WEEK = "week";
 
 /**
  * The saved shifts of one seven-day week, in order.
@@ -51,11 +56,44 @@ export default function WeekView({
 }) {
   const [chosenWeek, setChosenWeek] = useState(null);
   const [open, setOpen] = useState(null);
+  // The shift the keyboard should end up on once the week has redrawn itself,
+  // or `THE_WEEK` when there is no longer a shift to end up on. A fresh value
+  // each time, so moving the same shift twice reads as two moves.
+  const [landing, setLanding] = useState(null);
+  const headingRef = useRef(null);
+  const listRef = useRef(null);
+
+  /*
+    An edit can move a shift into another week, a duplicate can put a copy
+    there, and a delete takes one away entirely — in every case the card that
+    was being worked on is gone from the screen by the time React is finished,
+    and with it the button the keyboard was on.
+
+    This runs after the cards have redrawn, so whatever they did with focus has
+    already happened: a card that closed back into itself has taken its own
+    focus back, and this finds the keyboard where the card left it and leaves it
+    alone. It only acts when nothing has it — which is exactly the case where a
+    shift has left the screen.
+  */
+  useEffect(() => {
+    if (landing === null) return;
+
+    const card = [...(listRef.current?.children ?? [])].find(
+      (item) => item.dataset.shift === landing.on,
+    );
+    focusIfLost(
+      landing.on === THE_WEEK
+        ? headingRef.current
+        : card?.querySelector(`[data-action="${EDIT}"]`),
+    );
+  }, [landing]);
 
   if (!ready) {
     return (
       <section className='wagez-week flex min-h-0 flex-1 flex-col'>
-        <h2 className='sr-only'>Week</h2>
+        <h2 className='sr-only' tabIndex={-1} ref={headingRef}>
+          Week
+        </h2>
       </section>
     );
   }
@@ -83,11 +121,24 @@ export default function WeekView({
     if (saved.id === shift.id) onUpdate?.(saved);
     else onAdd?.(saved);
     goToWeek(startOfWeek(saved.date, weekStartsOn));
+    setLanding({ on: saved.id });
   }
 
+  /**
+   * A shift the user is finished with. The keyboard lands on the shift below
+   * it, or above it where there is nothing below — and on the week itself when
+   * that was the last one.
+   */
   function remove(id) {
+    const remaining = weekShifts
+      .map(({ shift }) => shift.id)
+      .filter((other) => other !== id);
+    const gone = weekShifts.findIndex(({ shift }) => shift.id === id);
+    const next = remaining[gone] ?? remaining[gone - 1] ?? THE_WEEK;
+
     onDelete?.(id);
     setOpen(null);
+    setLanding({ on: next });
   }
 
   // Priced a week at a time, in the order the shifts were worked: with overtime
@@ -101,7 +152,11 @@ export default function WeekView({
 
   return (
     <section className='wagez-week flex min-h-0 flex-1 flex-col gap-3'>
-      <h2 className='sr-only'>Week</h2>
+      {/* Focusable, so that a shift leaving the screen entirely has somewhere
+          to hand the keyboard back to. */}
+      <h2 className='sr-only' tabIndex={-1} ref={headingRef}>
+        Week
+      </h2>
 
       <nav className='wagez-week-nav' aria-label='Week'>
         <button
@@ -156,7 +211,7 @@ export default function WeekView({
             )}
           </div>
         ) : (
-          <ul className='wagez-week-list'>
+          <ul className='wagez-week-list' ref={listRef}>
             {weekShifts.map(({ shift, pay }) => (
               <SavedShiftCard
                 key={shift.id}
