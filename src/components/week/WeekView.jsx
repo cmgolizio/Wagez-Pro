@@ -17,7 +17,9 @@ import {
   summarizeAllocated,
 } from "@/lib/shifts/week";
 
+import ClearDataAction from "@/components/settings/ClearDataAction";
 import OvertimeSettings from "@/components/settings/OvertimeSettings";
+import WeekStartSetting from "@/components/settings/WeekStartSetting";
 import { focusIfLost } from "@/components/ui/focus";
 
 import SavedShiftCard from "./SavedShiftCard";
@@ -52,7 +54,9 @@ export default function WeekView({
   onAdd,
   onUpdate,
   onDelete,
+  onSetWeekStartsOn,
   onSetOvertime,
+  onClearData,
 }) {
   const [chosenWeek, setChosenWeek] = useState(null);
   const [open, setOpen] = useState(null);
@@ -99,7 +103,24 @@ export default function WeekView({
   }
 
   const thisWeek = startOfWeek(todayIsoDate(), weekStartsOn);
-  const weekStart = chosenWeek ?? thisWeek;
+  /*
+    A week the user has gone to stays the week they went to, but where a week
+    begins is always the boundary currently in force: changing that must not
+    leave the view pinned to seven days straddling two of the new weeks.
+
+    Which of the two, then. The days on screen are read from the middle of the
+    window rather than its first day, so moving the boundary keeps the week that
+    still holds most of them — six days of it — instead of the one that holds a
+    single day. While the boundary is unchanged the middle is inside the same
+    week as the start, so this is simply the week it already was.
+  */
+  const weekStart =
+    chosenWeek === null
+      ? thisWeek
+      : startOfWeek(
+          addDays(chosenWeek, Math.floor(DAYS_PER_WEEK / 2)),
+          weekStartsOn,
+        );
   const isThisWeek = weekStart === thisWeek;
 
   /** Go to another week, leaving nothing open behind. */
@@ -228,7 +249,14 @@ export default function WeekView({
           </ul>
         )}
 
+        {/* What little Wagez has to be set: how it works out overtime, where
+            it draws a week, and the one way to be rid of all of it. */}
         <OvertimeSettings overtime={overtime} onChange={onSetOvertime} />
+        <WeekStartSetting
+          weekStartsOn={weekStartsOn}
+          onChange={onSetWeekStartsOn}
+        />
+        <ClearDataAction onClear={onClearData} />
       </div>
     </section>
   );

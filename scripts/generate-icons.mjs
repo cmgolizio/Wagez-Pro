@@ -20,7 +20,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** The gradient, exactly as `--wagez-gradient` defines it. */
 const GRADIENT = {
-  angle: 315,
+  angle: 45,
   stops: [
     { at: 0, color: [0x00, 0xff, 0x87] },
     { at: 0.5, color: [0x00, 0xff, 0xd0] },
