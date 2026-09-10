@@ -31,9 +31,7 @@ export default function WagezApp() {
     updateShift,
     removeShift,
     setDefaultRateCents,
-    setWeekStartsOn,
     setOvertime,
-    clearData,
   } = useWagezData();
   const [view, setView] = useState(SHIFT);
 
@@ -68,9 +66,7 @@ export default function WagezApp() {
           onAdd={addShift}
           onUpdate={updateShift}
           onDelete={removeShift}
-          onSetWeekStartsOn={setWeekStartsOn}
           onSetOvertime={setOvertime}
-          onClearData={clearData}
         />
       </div>
     </main>

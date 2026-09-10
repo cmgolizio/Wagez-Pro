@@ -14,7 +14,6 @@
  */
 
 import {
-  clearWagezData,
   defaultWagezData,
   loadWagezData,
   saveWagezData,
@@ -63,18 +62,6 @@ export function updateWagezData(updater) {
 
   snapshot = next;
   saveWagezData(next);
-  for (const listener of listeners) listener();
-}
-
-/**
- * Forget everything: the saved shifts and the settings both, on the device and
- * in memory alike. What is left is the Wagez a device that has never seen it
- * would get — the key itself is removed rather than overwritten with defaults,
- * so nothing of the user's is left behind on it.
- */
-export function clearWagez() {
-  clearWagezData();
-  snapshot = { ready: true, ...defaultWagezData() };
   for (const listener of listeners) listener();
 }
 

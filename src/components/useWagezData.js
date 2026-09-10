@@ -3,7 +3,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 import {
-  clearWagez,
   getWagezServerSnapshot,
   getWagezSnapshot,
   subscribeToWagez,
@@ -80,32 +79,12 @@ export default function useWagezData() {
     }));
   }, []);
 
-  /**
-   * Change which day a week begins on.
-   *
-   * Nothing saved moves: a shift belongs to the day it was worked, and the
-   * weeks are only ever the lines drawn around those days as they are read.
-   *
-   * @param {string} day `"sunday"` or `"monday"`.
-   */
-  const setWeekStartsOn = useCallback((day) => {
-    updateWagezData((current) => ({
-      ...current,
-      settings: { ...current.settings, weekStartsOn: day },
-    }));
-  }, []);
-
   /** Take a shift out of the week for good. */
   const removeShift = useCallback((id) => {
     updateWagezData((current) => ({
       ...current,
       shifts: current.shifts.filter((entry) => entry.id !== id),
     }));
-  }, []);
-
-  /** Forget everything this device has saved. */
-  const clearData = useCallback(() => {
-    clearWagez();
   }, []);
 
   return {
@@ -116,8 +95,6 @@ export default function useWagezData() {
     updateShift,
     removeShift,
     setDefaultRateCents,
-    setWeekStartsOn,
     setOvertime,
-    clearData,
   };
 }
