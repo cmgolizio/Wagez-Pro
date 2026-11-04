@@ -28,6 +28,7 @@ import {
 const SERVER_SNAPSHOT = Object.freeze({ ready: false, ...defaultWagezData() });
 
 let snapshot = null;
+let lastSaveFailed = false;
 
 const listeners = new Set();
 
@@ -60,10 +61,18 @@ export function updateWagezData(updater) {
   // is on screen can never be something a reload would quietly drop.
   const next = { ready: true, ...validateStoredData(updater(current)) };
 
+  if (!saveWagezData(next)) {
+    lastSaveFailed = true;
+    for (const listener of listeners) listener();
+    return false;
+  }
   snapshot = next;
-  saveWagezData(next);
+  lastSaveFailed = false;
   for (const listener of listeners) listener();
+  return true;
 }
+
+export function wagezSaveFailed() { return lastSaveFailed; }
 
 /**
  * Forget what has been read, so the device is read again on the next ask.
@@ -71,4 +80,5 @@ export function updateWagezData(updater) {
  */
 export function resetWagezStore() {
   snapshot = null;
+  lastSaveFailed = false;
 }
