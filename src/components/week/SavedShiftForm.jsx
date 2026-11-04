@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { formatRateInput } from "@/lib/formatters/currency";
 
 import {
   createSavedShift,
@@ -36,7 +37,7 @@ const TITLES = { [EDIT]: "Edit shift", [DUPLICATE]: "Duplicate shift" };
  * that needs correcting should not have to be found first. Left empty each
  * means what it always means — no money, and no break.
  */
-export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
+export default function SavedShiftForm({ shift, employers = [], mode, onSave, onCancel }) {
   const [draft, setDraft] = useState(() =>
     mode === DUPLICATE ? duplicateDraft(shift) : shiftDraft(shift),
   );
@@ -58,7 +59,14 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
   const field = (name) => `shift-${shift.id}-${name}`;
 
   function updateDraft(name, value) {
-    setDraft((current) => ({ ...current, [name]: value }));
+    setDraft((current) => {
+      if (name === "employerId") {
+        const employer = employers.find((entry) => entry.id === value);
+        return { ...current, employerId: value,
+          hourlyRate: employer ? formatRateInput(employer.hourlyRateCents) : current.hourlyRate };
+      }
+      return { ...current, [name]: value };
+    });
     // Stop pointing at a mistake the user is already fixing.
     setErrors(NO_ERRORS);
   }
@@ -128,6 +136,21 @@ export default function SavedShiftForm({ shift, mode, onSave, onCancel }) {
         error={errors.endTime}
         onChange={(value) => updateDraft("endTime", value)}
       />
+      {employers.length || draft.employerId ? (
+        <div className="flex flex-col gap-1">
+          <label htmlFor={field("employer")} className="wagez-field-label">Employer (optional)</label>
+          <div className="wagez-field">
+            <select id={field("employer")} className="w-full bg-transparent font-bold min-h-10"
+              value={draft.employerId ?? ""} onChange={(event) => updateDraft("employerId", event.target.value)}>
+              <option value="">No employer</option>
+              {draft.employerId && !employers.some((e) => e.id === draft.employerId) ? (
+                <option value={draft.employerId}>Former employer</option>
+              ) : null}
+              {employers.map((employer) => <option key={employer.id} value={employer.id}>{employer.name}</option>)}
+            </select>
+          </div>
+        </div>
+      ) : null}
       <RateField
         ref={rateRef}
         id={field("rate")}
