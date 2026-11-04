@@ -68,6 +68,7 @@ export default function WagezApp() {
           onDelete={removeShift}
           onSetDefaultRate={setDefaultRateCents}
           onShowWeek={() => setView(WEEK)}
+          onManageEmployers={() => setView(SETTINGS)}
         />
       </div>
       <div className={view === WEEK ? "contents" : "hidden"}>
