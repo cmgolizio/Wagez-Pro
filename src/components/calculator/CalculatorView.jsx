@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { calculateShift } from "@/lib/calculations/shift";
 import { shiftSignature } from "@/lib/calculations/signature";
@@ -86,7 +86,9 @@ export default function CalculatorView({
   const [showRate, setShowRate] = useState(false);
   const [showBreak, setShowBreak] = useState(false);
   // Whether the saved default rate has been put into the shift on screen yet.
-  const [seeded, setSeeded] = useState(false);
+  const manualEmployerSelection = useRef(false);
+  const manualRateEntry = useRef(false);
+  const lastAppliedDefault = useRef({ ready: false, id: null });
   // Which optional field the user has just asked for, or asked to be rid of.
   // A fresh value each time, so asking twice reads as two asks — and null for
   // every field that appeared without being asked for.
@@ -101,23 +103,41 @@ export default function CalculatorView({
   const stageRef = useFitToViewport(active);
 
   /*
-    The device is read a beat after the first render, so a saved default rate
-    arrives after the calculator does. It is put into the shift once, and only
-    into a rate nobody has typed in yet — a user who beat the device to it keeps
-    what they typed.
+    The app loads settings after its first render, and the Shift view remains
+    mounted while Settings is open. Apply the default the first time local
+    storage is ready AND whenever the user changes their default employer.
+
+    A deliberate employer choice or typed hourly rate always wins. This also
+    keeps "No employer" an explicit, respected choice, while Reset starts
+    a genuinely fresh shift using the latest defaults.
   */
-  if (ready && !seeded) {
-    setSeeded(true);
-    const initialRate = defaultEmployer ? formatRateInput(defaultEmployer.hourlyRateCents) : defaultRate;
-    if (initialRate !== "" || defaultEmployer) {
-      setDraft((current) =>
-        current.hourlyRate === "" && !current.employerId
-          ? { ...current, hourlyRate: initialRate, employerId: defaultEmployer?.id ?? "" }
-          : current,
-      );
-      setShowRate(initialRate !== "");
-    }
-  }
+  useEffect(() => {
+    if (!ready) return;
+
+    const previous = lastAppliedDefault.current;
+    if (previous.ready && previous.id === defaultEmployerId) return;
+    lastAppliedDefault.current = { ready: true, id: defaultEmployerId };
+
+    if (manualEmployerSelection.current) return;
+
+    const employerId = defaultEmployer?.id ?? "";
+    const rate = defaultEmployer
+      ? formatRateInput(defaultEmployer.hourlyRateCents)
+      : defaultRate;
+
+    setDraft((current) => {
+      const hourlyRate = manualRateEntry.current ? current.hourlyRate : rate;
+      if (
+        current.employerId === employerId &&
+        current.hourlyRate === hourlyRate
+      ) {
+        return current;
+      }
+      return { ...current, employerId, hourlyRate };
+    });
+
+    if (!manualRateEntry.current) setShowRate(rate !== "");
+  }, [ready, defaultEmployerId, defaultEmployer, defaultRate]);
 
   // The rate on screen, as cents — null while it is blank or unreadable, which
   // is also when there is nothing that could be kept as a default.
@@ -143,6 +163,13 @@ export default function CalculatorView({
   }
 
   function updateDraft(field, value) {
+    if (field === "employerId") {
+      manualEmployerSelection.current = true;
+      // Choosing an employer also chooses a rate for this draft.
+      manualRateEntry.current = true;
+    } else if (field === "hourlyRate") {
+      manualRateEntry.current = true;
+    }
     setDraft((current) => {
       if (field === "employerId") {
         const employer = employers.find((entry) => entry.id === value);
@@ -170,6 +197,7 @@ export default function CalculatorView({
    * it does not take is the saved default: forgetting that is its own press.
    */
   function toggleRate() {
+    manualRateEntry.current = true;
     const next = !showRate;
     setShowRate(next);
     setAsked({ field: "hourlyRate" });
@@ -275,6 +303,8 @@ export default function CalculatorView({
    * make them type again. Nothing saved is touched: the week is elsewhere.
    */
   function reset() {
+    manualEmployerSelection.current = false;
+    manualRateEntry.current = false;
     setDraft(newDraft(defaultRate, defaultEmployer));
     setCalculation(null);
     setShowRate(defaultEmployer !== null || defaultRate !== "");
