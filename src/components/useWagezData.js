@@ -5,6 +5,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import {
   getWagezServerSnapshot,
   getWagezSnapshot,
+  getWagezSnapshot,
   subscribeToWagez,
   updateWagezData,
 } from "@/lib/storage/wagezStore";
