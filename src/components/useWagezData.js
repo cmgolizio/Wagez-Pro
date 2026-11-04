@@ -8,7 +8,6 @@ import {
   getWagezSnapshot,
   subscribeToWagez,
   updateWagezData,
-  wagezSaveFailed,
 } from "@/lib/storage/wagezStore";
 
 /**
@@ -129,7 +128,7 @@ export default function useWagezData() {
 
   return {
     ready: data.ready,
-    saveFailed: wagezSaveFailed(),
+    saveFailed: data.saveFailed ?? false,
     shifts: data.shifts,
     employers: data.employers,
     settings: data.settings,
