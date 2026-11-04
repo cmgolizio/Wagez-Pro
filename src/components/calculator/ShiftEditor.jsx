@@ -82,7 +82,6 @@ export default function ShiftEditor({
   onToggleDefaultRate,
   onCalculate,
   onReset,
-  onManageEmployers,
   onRecall,
 }) {
   const startRef = useRef(null);
@@ -184,47 +183,18 @@ export default function ShiftEditor({
         defaultMeridiem={PM}
       />
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="shift-employer" className="wagez-field-label">
-          Employer (optional)
-        </label>
-        <div className="wagez-field">
-          <select
-            id="shift-employer"
-            className="w-full bg-transparent font-bold min-h-10"
-            value={draft.employerId ?? ""}
-            onChange={(event) => onChange("employerId", event.target.value)}
-            disabled={employers.length === 0}
-          >
-            <option value="">No employer</option>
-            {employers.map((employer) => (
-              <option key={employer.id} value={employer.id}>
-                {employer.name}
-              </option>
-            ))}
-          </select>
+      {employers.length ? (
+        <div className="flex flex-col gap-1">
+          <label htmlFor="shift-employer" className="wagez-field-label">Employer (optional)</label>
+          <div className="wagez-field">
+            <select id="shift-employer" className="w-full bg-transparent font-bold min-h-10"
+              value={draft.employerId ?? ""} onChange={(event) => onChange("employerId", event.target.value)}>
+              <option value="">No employer</option>
+              {employers.map((employer) => <option key={employer.id} value={employer.id}>{employer.name}</option>)}
+            </select>
+          </div>
         </div>
-        {employers.length === 0 ? (
-          <p className="text-sm font-semibold">
-            No employers set up yet.{" "}
-            <button
-              type="button"
-              className="wagez-inline-button"
-              onClick={onManageEmployers}
-            >
-              Add an employer in Settings
-            </button>
-          </p>
-        ) : (
-          <button
-            type="button"
-            className="wagez-inline-button self-start"
-            onClick={onManageEmployers}
-          >
-            Manage employers
-          </button>
-        )}
-      </div>
+      ) : null}
 
       {showRate ? (
         <RateField
