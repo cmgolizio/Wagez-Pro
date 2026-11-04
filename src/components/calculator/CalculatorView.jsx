@@ -70,6 +70,7 @@ export default function CalculatorView({
   onDelete,
   onSetDefaultRate,
   onShowWeek,
+  onManageEmployers,
 }) {
   // The saved rate as the field would have it typed — "" when there isn't one.
   const defaultRate = formatRateInput(defaultRateCents);
@@ -331,6 +332,7 @@ export default function CalculatorView({
         onToggleDefaultRate={toggleDefaultRate}
         onCalculate={calculate}
         onReset={reset}
+        onManageEmployers={onManageEmployers}
         onRecall={recallEditor}
       />
       <ResultDisplay
