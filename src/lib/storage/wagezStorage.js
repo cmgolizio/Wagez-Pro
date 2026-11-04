@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS = {
   defaultHourlyRateCents: null,
   weekStartsOn: SUNDAY,
   overtime: DEFAULT_OVERTIME,
+  defaultEmployerId: null,
 };
 
 const WEEK_STARTS = [SUNDAY, MONDAY];
@@ -40,6 +41,7 @@ export function defaultWagezData() {
   return {
     version: STORAGE_VERSION,
     settings: { ...DEFAULT_SETTINGS },
+    employers: [],
     shifts: [],
   };
 }
@@ -68,7 +70,22 @@ function normalizeDefaultRate(value) {
   return Number.isInteger(value) && value >= 0 ? value : null;
 }
 
-function normalizeSettings(value) {
+function normalizeEmployers(value) {
+  const seen = new Set();
+  const employers = [];
+  for (const entry of Array.isArray(value) ? value : []) {
+    if (!entry || typeof entry !== "object") continue;
+    const id = typeof entry.id === "string" ? entry.id.trim() : "";
+    const name = typeof entry.name === "string" ? entry.name.trim() : "";
+    if (!id || !name || name.length > 100 || seen.has(id)) continue;
+    if (!Number.isSafeInteger(entry.hourlyRateCents) || entry.hourlyRateCents < 0) continue;
+    seen.add(id);
+    employers.push({ id, name, hourlyRateCents: entry.hourlyRateCents });
+  }
+  return employers;
+}
+
+function normalizeSettings(value, employers) {
   const settings = value === null || typeof value !== "object" ? {} : value;
   return {
     defaultHourlyRateCents: normalizeDefaultRate(
@@ -78,6 +95,8 @@ function normalizeSettings(value) {
       ? settings.weekStartsOn
       : DEFAULT_SETTINGS.weekStartsOn,
     overtime: normalizeOvertime(settings.overtime),
+    defaultEmployerId: employers.some((e) => e.id === settings.defaultEmployerId)
+      ? settings.defaultEmployerId : null,
   };
 }
 
@@ -102,9 +121,11 @@ export function validateStoredData(value) {
     shifts.push(shift);
   }
 
+  const employers = normalizeEmployers(value.employers);
   return {
     version: STORAGE_VERSION,
-    settings: normalizeSettings(value.settings),
+    settings: normalizeSettings(value.settings, employers),
+    employers,
     shifts,
   };
 }
