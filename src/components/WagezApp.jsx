@@ -5,14 +5,18 @@ import { useState } from "react";
 import CalculatorView from "./calculator/CalculatorView";
 import ViewSwitch from "./ui/ViewSwitch";
 import WeekView from "./week/WeekView";
+import EmployerSettings from "./settings/EmployerSettings";
+import DataBackup from "./settings/DataBackup";
 import useWagezData from "./useWagezData";
 
 const SHIFT = "shift";
 const WEEK = "week";
+const SETTINGS = "settings";
 
 const VIEWS = [
   { id: SHIFT, label: "Shift" },
   { id: WEEK, label: "Week" },
+  { id: SETTINGS, label: "Settings" },
 ];
 
 /**
@@ -27,6 +31,11 @@ export default function WagezApp() {
     ready,
     shifts,
     settings,
+    employers,
+    saveEmployer,
+    deleteEmployer,
+    setDefaultEmployer,
+    restoreData,
     addShift,
     updateShift,
     removeShift,
@@ -50,6 +59,8 @@ export default function WagezApp() {
           ready={ready}
           shifts={shifts}
           defaultRateCents={settings.defaultHourlyRateCents}
+          employers={employers}
+          defaultEmployerId={settings.defaultEmployerId}
           onSave={addShift}
           onUpdate={updateShift}
           onDelete={removeShift}
@@ -60,6 +71,7 @@ export default function WagezApp() {
       <div className={view === WEEK ? "contents" : "hidden"}>
         <WeekView
           shifts={shifts}
+          employers={employers}
           weekStartsOn={settings.weekStartsOn}
           overtime={settings.overtime}
           ready={ready}
@@ -69,6 +81,14 @@ export default function WagezApp() {
           onSetOvertime={setOvertime}
         />
       </div>
+      {view === SETTINGS ? (
+        <section className="wagez-week flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+          <EmployerSettings employers={employers} shifts={shifts}
+            defaultEmployerId={settings.defaultEmployerId}
+            onSave={saveEmployer} onDelete={deleteEmployer} onSetDefault={setDefaultEmployer} />
+          <DataBackup data={{ shifts, employers, settings }} onRestore={restoreData} />
+        </section>
+      ) : null}
     </main>
   );
 }
