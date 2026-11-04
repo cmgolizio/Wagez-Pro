@@ -29,6 +29,7 @@ const VIEWS = [
 export default function WagezApp() {
   const {
     ready,
+    saveFailed,
     shifts,
     settings,
     employers,
@@ -53,6 +54,7 @@ export default function WagezApp() {
         <ViewSwitch view={view} views={VIEWS} onChange={setView} />
       </header>
 
+      {saveFailed ? <p role="alert" className="wagez-alert font-bold">Save failed. Browser storage is unavailable or full; your latest change was not saved. Export a backup or free space before continuing.</p> : null}
       <div className={view === SHIFT ? "contents" : "hidden"}>
         <CalculatorView
           active={view === SHIFT}
