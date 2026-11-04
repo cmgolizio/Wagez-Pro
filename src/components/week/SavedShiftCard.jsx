@@ -34,6 +34,7 @@ export const DELETE = "delete";
  */
 export default function SavedShiftCard({
   shift,
+  employers = [],
   pay = null,
   overtime = null,
   mode = null,
@@ -79,6 +80,7 @@ export default function SavedShiftCard({
       <li className='wagez-shift-card' data-shift={shift.id}>
         <SavedShiftForm
           shift={shift}
+          employers={employers}
           mode={mode}
           onSave={onSave}
           onCancel={onClose}
@@ -91,7 +93,7 @@ export default function SavedShiftCard({
     // The week finds a card by the shift it holds, so that a shift moved into
     // another week can be handed the keyboard once it is drawn there.
     <li className='wagez-shift-card' data-shift={shift.id}>
-      <p className='wagez-shift-day'>{day}</p>
+      <p className='wagez-shift-day'>{day}{shift.employerId ? ` · ${employers.find((e) => e.id === shift.employerId)?.name ?? "Former employer"}` : ""}</p>
       <p className='wagez-shift-times'>
         {formatTime(shift.startTime)} → {formatTime(shift.endTime)}
         {derived.crossesMidnight ? (
