@@ -8,6 +8,7 @@ import {
   getWagezSnapshot,
   subscribeToWagez,
   updateWagezData,
+  wagezSaveFailed,
 } from "@/lib/storage/wagezStore";
 
 /**
@@ -27,7 +28,7 @@ export default function useWagezData() {
 
   /** Add a shift to the week. */
   const addShift = useCallback((shift) => {
-    updateWagezData((current) => ({
+    return updateWagezData((current) => ({
       ...current,
       shifts: [...current.shifts, shift],
     }));
@@ -39,7 +40,7 @@ export default function useWagezData() {
    * so where a shift sits in this array means nothing.
    */
   const updateShift = useCallback((shift) => {
-    updateWagezData((current) => ({
+    return updateWagezData((current) => ({
       ...current,
       shifts: current.shifts.map((entry) =>
         entry.id === shift.id ? shift : entry,
@@ -105,7 +106,7 @@ export default function useWagezData() {
   }, []);
 
   const restoreData = useCallback((data) => {
-    updateWagezData(() => data);
+    return updateWagezData(() => data);
   }, []);
 
   const setOvertime = useCallback((changes) => {
@@ -128,6 +129,7 @@ export default function useWagezData() {
 
   return {
     ready: data.ready,
+    saveFailed: wagezSaveFailed(),
     shifts: data.shifts,
     employers: data.employers,
     settings: data.settings,
