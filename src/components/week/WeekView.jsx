@@ -46,6 +46,7 @@ const THE_WEEK = "week";
  */
 export default function WeekView({
   shifts,
+  employers = [],
   weekStartsOn,
   overtime,
   ready,
@@ -55,6 +56,7 @@ export default function WeekView({
   onSetOvertime,
 }) {
   const [chosenWeek, setChosenWeek] = useState(null);
+  const [employerFilter, setEmployerFilter] = useState("all");
   const [open, setOpen] = useState(null);
   // The shift the keyboard should end up on once the week has redrawn itself,
   // or `THE_WEEK` when there is no longer a shift to end up on. A fresh value
@@ -143,7 +145,9 @@ export default function WeekView({
 
   // Priced a week at a time, in the order the shifts were worked: with overtime
   // switched on, what a shift is worth depends on the hours that came before it.
-  const weekShifts = allocateShifts(shiftsForWeek(shifts, weekStart), overtime);
+  const allWeekShifts = allocateShifts(shiftsForWeek(shifts, weekStart), overtime);
+  const weekShifts = allWeekShifts.filter(({ shift }) =>
+    employerFilter === "all" || (employerFilter === "none" ? !shift.employerId : shift.employerId === employerFilter));
   const totals = summarizeAllocated(weekShifts);
   // Somewhere to go when this week is empty but the user's work is not.
   const [latestWeek] = groupShiftsByWeek(shifts, weekStartsOn);
@@ -186,6 +190,17 @@ export default function WeekView({
       </nav>
 
       <div className='wagez-week-body'>
+        <div className="flex flex-col gap-1 shrink-0">
+          <label className="wagez-field-label" htmlFor="week-employer-filter">Filter by employer</label>
+          <div className="wagez-field">
+            <select id="week-employer-filter" className="w-full bg-transparent font-bold min-h-10"
+              value={employerFilter} onChange={(event) => { setEmployerFilter(event.target.value); setOpen(null); }}>
+              <option value="all">All employers</option>
+              <option value="none">No employer</option>
+              {employers.map((employer) => <option key={employer.id} value={employer.id}>{employer.name}</option>)}
+            </select>
+          </div>
+        </div>
         {/* The totals and the one action that hands them to somebody else. */}
         <div className='wagez-week-totals'>
           <WeekSummary totals={totals} overtime={overtime} />
@@ -216,6 +231,7 @@ export default function WeekView({
               <SavedShiftCard
                 key={shift.id}
                 shift={shift}
+                employers={employers}
                 pay={pay}
                 overtime={overtime}
                 mode={open?.id === shift.id ? open.mode : null}

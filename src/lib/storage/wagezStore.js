@@ -60,9 +60,14 @@ export function updateWagezData(updater) {
   // is on screen can never be something a reload would quietly drop.
   const next = { ready: true, ...validateStoredData(updater(current)) };
 
-  snapshot = next;
-  saveWagezData(next);
+  if (!saveWagezData(next)) {
+    snapshot = { ...current, saveFailed: true };
+    for (const listener of listeners) listener();
+    return false;
+  }
+  snapshot = { ...next, saveFailed: false };
   for (const listener of listeners) listener();
+  return true;
 }
 
 /**

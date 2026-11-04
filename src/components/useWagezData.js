@@ -26,7 +26,7 @@ export default function useWagezData() {
 
   /** Add a shift to the week. */
   const addShift = useCallback((shift) => {
-    updateWagezData((current) => ({
+    return updateWagezData((current) => ({
       ...current,
       shifts: [...current.shifts, shift],
     }));
@@ -38,7 +38,7 @@ export default function useWagezData() {
    * so where a shift sits in this array means nothing.
    */
   const updateShift = useCallback((shift) => {
-    updateWagezData((current) => ({
+    return updateWagezData((current) => ({
       ...current,
       shifts: current.shifts.map((entry) =>
         entry.id === shift.id ? shift : entry,
@@ -69,6 +69,44 @@ export default function useWagezData() {
    *
    * @param {object} changes any of `enabled`, `thresholdMinutes`, `multiplier`.
    */
+  const saveEmployer = useCallback((employer) => {
+    updateWagezData((current) => ({
+      ...current,
+      employers: current.employers.some((e) => e.id === employer.id)
+        ? current.employers.map((e) => e.id === employer.id ? employer : e)
+        : [...current.employers, employer],
+    }));
+  }, []);
+
+  const deleteEmployer = useCallback((id) => {
+    const current = getWagezSnapshot();
+    if (current.shifts.some((shift) => shift.employerId === id)) return false;
+    updateWagezData((data) => ({
+      ...data,
+      employers: data.employers.filter((e) => e.id !== id),
+      settings: {
+        ...data.settings,
+        defaultEmployerId: data.settings.defaultEmployerId === id
+          ? null : data.settings.defaultEmployerId,
+      },
+    }));
+    return true;
+  }, []);
+
+  const setDefaultEmployer = useCallback((id) => {
+    updateWagezData((current) => ({
+      ...current,
+      settings: {
+        ...current.settings,
+        defaultEmployerId: id,
+      },
+    }));
+  }, []);
+
+  const restoreData = useCallback((data) => {
+    return updateWagezData(() => data);
+  }, []);
+
   const setOvertime = useCallback((changes) => {
     updateWagezData((current) => ({
       ...current,
@@ -89,12 +127,18 @@ export default function useWagezData() {
 
   return {
     ready: data.ready,
+    saveFailed: data.saveFailed ?? false,
     shifts: data.shifts,
+    employers: data.employers,
     settings: data.settings,
     addShift,
     updateShift,
     removeShift,
     setDefaultRateCents,
     setOvertime,
+    saveEmployer,
+    deleteEmployer,
+    setDefaultEmployer,
+    restoreData,
   };
 }

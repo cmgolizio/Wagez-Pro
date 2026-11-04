@@ -54,7 +54,9 @@ describe("defaults", () => {
         defaultHourlyRateCents: null,
         weekStartsOn: SUNDAY,
         overtime: DEFAULT_OVERTIME,
+        defaultEmployerId: null,
       },
+      employers: [],
       shifts: [],
     });
   });
@@ -278,5 +280,56 @@ describe("migrateStoredData", () => {
     expect(migrateStoredData({ version: 0 })).toBeNull();
     expect(migrateStoredData({ shifts: [] })).toBeNull();
     expect(migrateStoredData(null)).toBeNull();
+  });
+});
+
+describe("employer data is backwards compatible", () => {
+  it("preserves all historical shifts with no employer and the same key", () => {
+    const old = { version: 1, settings: { weekStartsOn: SUNDAY }, shifts: [SHIFT] };
+    const storage = fakeStorage(stored(old));
+    const loaded = loadWagezData(storage);
+    expect(STORAGE_KEY).toBe("wagez:v2");
+    expect(loaded.shifts).toEqual([SHIFT]);
+    expect(loaded.employers).toEqual([]);
+    expect(loaded.settings.defaultEmployerId).toBeNull();
+  });
+
+  it("round-trips employers and a selected default without changing rates", () => {
+    const employer = { id: "a", name: "Bistro", hourlyRateCents: 2450 };
+    const shifts = [{ ...SHIFT, employerId: "a" }];
+    const storage = fakeStorage();
+    expect(saveWagezData({
+      ...defaultWagezData(),
+      employers: [employer],
+      shifts,
+      settings: { defaultEmployerId: "a", defaultHourlyRateCents: null },
+    }, storage)).toBe(true);
+    const loaded = loadWagezData(storage);
+    expect(loaded.employers).toEqual([employer]);
+    expect(loaded.settings.defaultEmployerId).toBe("a");
+    expect(loaded.shifts[0].hourlyRateCents).toBe(2000);
+    expect(loaded.shifts[0].employerId).toBe("a");
+  });
+
+  it("does not invent a default when the referenced employer is absent", () => {
+    const data = validateStoredData({
+      employers: [], settings: { defaultEmployerId: "missing" }, shifts: [SHIFT],
+    });
+    expect(data.settings.defaultEmployerId).toBeNull();
+    expect(data.shifts).toEqual([SHIFT]);
+  });
+
+  it("rejects duplicate and malformed employers without deleting shifts", () => {
+    const data = validateStoredData({
+      employers: [
+        { id: "x", name: "Cafe", hourlyRateCents: 1300 },
+        { id: "x", name: "Duplicate", hourlyRateCents: 999 },
+        { id: "y", name: "", hourlyRateCents: 1200 },
+        { id: "z", name: "Bad rate", hourlyRateCents: -1 },
+      ],
+      shifts: [SHIFT],
+    });
+    expect(data.employers).toEqual([{ id: "x", name: "Cafe", hourlyRateCents: 1300 }]);
+    expect(data.shifts).toEqual([SHIFT]);
   });
 });

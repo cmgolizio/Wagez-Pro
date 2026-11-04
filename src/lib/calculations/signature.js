@@ -45,5 +45,6 @@ export function shiftSignature(input = {}) {
     .sort()
     .map((field) => `${field}!${errors[field]}`);
 
-  return [...normalized, ...complaints].join("|");
+  const employer = input.employerId ? [`employerId=${input.employerId}`] : [];
+  return [...normalized, ...complaints, ...employer].join("|");
 }
