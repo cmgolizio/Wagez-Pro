@@ -32,13 +32,14 @@ export default function DataBackup({ data, onRestore }) {
       if (file.size > 10 * 1024 * 1024) throw new Error("Backup is too large.");
       const parsed = JSON.parse(await file.text());
       if (!parsed || parsed.version !== STORAGE_VERSION ||
-        !Array.isArray(parsed.shifts) || !Array.isArray(parsed.employers) ||
+        !Array.isArray(parsed.shifts) ||
+        (parsed.employers !== undefined && !Array.isArray(parsed.employers)) ||
         !parsed.settings || typeof parsed.settings !== "object") {
         throw new Error("This is not a supported Wagez backup.");
       }
       const normalized = validateStoredData(parsed);
       if (normalized.shifts.length !== parsed.shifts.length ||
-          normalized.employers.length !== parsed.employers.length) {
+          normalized.employers.length !== (parsed.employers?.length ?? 0)) {
         throw new Error("Backup contains invalid or duplicate shifts/employers.");
       }
       setPending(normalized);
@@ -62,8 +63,11 @@ export default function DataBackup({ data, onRestore }) {
         <p className="font-semibold">Replace all current data with {pending.shifts.length} shifts and {pending.employers.length} employers? This cannot be undone without a backup.</p>
         <div className="flex gap-2">
           <button type="button" className="wagez-quiet-button" onClick={() => {
-            onRestore(pending);
-            setPending(null);
+            if (onRestore(pending) !== false) {
+              setPending(null);
+            } else {
+              setError("Restore failed: your browser did not save the imported data.");
+            }
           }}>Replace data</button>
           <button type="button" className="wagez-quiet-button" onClick={() => setPending(null)}>Cancel</button>
         </div>
