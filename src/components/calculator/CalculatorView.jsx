@@ -239,7 +239,7 @@ export default function CalculatorView({
     // Unreachable: these values already calculated. Belt and braces.
     if (!ok) return;
 
-    onSave?.(shift);
+    if (onSave?.(shift) === false) return;
     setSavedId(shift.id);
     setSavedKey(calculation.signature);
     setDayOpen(false);
