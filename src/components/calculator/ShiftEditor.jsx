@@ -67,6 +67,7 @@ function useAskedFocus(asked, open, fieldRef, toggleRef) {
  */
 export default function ShiftEditor({
   draft,
+  employers = [],
   entered,
   errors,
   steppedBack = false,
@@ -181,6 +182,19 @@ export default function ShiftEditor({
         onComplete={focusAfterEnd}
         defaultMeridiem={PM}
       />
+
+      {employers.length ? (
+        <div className="flex flex-col gap-1">
+          <label htmlFor="shift-employer" className="wagez-field-label">Employer (optional)</label>
+          <div className="wagez-field">
+            <select id="shift-employer" className="w-full bg-transparent font-bold min-h-10"
+              value={draft.employerId ?? ""} onChange={(event) => onChange("employerId", event.target.value)}>
+              <option value="">No employer</option>
+              {employers.map((employer) => <option key={employer.id} value={employer.id}>{employer.name}</option>)}
+            </select>
+          </div>
+        </div>
+      ) : null}
 
       {showRate ? (
         <RateField
