@@ -34,11 +34,12 @@ import useFitToViewport from "./useFitToViewport";
  * told one. That is the only thing that carries over from the last shift: the
  * times and the break start empty every time.
  */
-function newDraft(defaultRate) {
+function newDraft(defaultRate, employer = null) {
   return {
     startTime: "",
     endTime: "",
-    hourlyRate: defaultRate,
+    hourlyRate: employer ? formatRateInput(employer.hourlyRateCents) : defaultRate,
+    employerId: employer?.id ?? "",
     breakMinutes: "",
   };
 }
@@ -62,6 +63,8 @@ export default function CalculatorView({
   ready = true,
   shifts = [],
   defaultRateCents = null,
+  employers = [],
+  defaultEmployerId = null,
   onSave,
   onUpdate,
   onDelete,
@@ -70,7 +73,8 @@ export default function CalculatorView({
 }) {
   // The saved rate as the field would have it typed — "" when there isn't one.
   const defaultRate = formatRateInput(defaultRateCents);
-  const [draft, setDraft] = useState(() => newDraft(defaultRate));
+  const defaultEmployer = employers.find((employer) => employer.id === defaultEmployerId) ?? null;
+  const [draft, setDraft] = useState(() => newDraft(defaultRate, defaultEmployer));
   // The last thing "Do Math." produced, plus the signature of the inputs it
   // was made from. Holding both together is what lets Wagez notice that the
   // draft has moved on without ever recalculating behind the user's back.
@@ -103,13 +107,14 @@ export default function CalculatorView({
   */
   if (ready && !seeded) {
     setSeeded(true);
-    if (defaultRate !== "") {
+    const initialRate = defaultEmployer ? formatRateInput(defaultEmployer.hourlyRateCents) : defaultRate;
+    if (initialRate !== "" || defaultEmployer) {
       setDraft((current) =>
-        current.hourlyRate === ""
-          ? { ...current, hourlyRate: defaultRate }
+        current.hourlyRate === "" && !current.employerId
+          ? { ...current, hourlyRate: initialRate, employerId: defaultEmployer?.id ?? "" }
           : current,
       );
-      setShowRate(true);
+      setShowRate(initialRate !== "");
     }
   }
 
@@ -137,7 +142,15 @@ export default function CalculatorView({
   }
 
   function updateDraft(field, value) {
-    setDraft((current) => ({ ...current, [field]: value }));
+    setDraft((current) => {
+      if (field === "employerId") {
+        const employer = employers.find((entry) => entry.id === value);
+        return { ...current, employerId: value,
+          hourlyRate: employer ? formatRateInput(employer.hourlyRateCents) : current.hourlyRate };
+      }
+      return { ...current, [field]: value };
+    });
+    if (field === "employerId" && value) setShowRate(true);
     // Stop pointing at a mistake the user is already fixing.
     setCalculation((current) =>
       current === null || current.ok ? current : null,
@@ -220,6 +233,7 @@ export default function CalculatorView({
 
     const { ok, shift } = createSavedShift({
       ...values,
+      employerId: draft.employerId,
       date: suggestShiftDate(values),
     });
     // Unreachable: these values already calculated. Belt and braces.
@@ -260,9 +274,9 @@ export default function CalculatorView({
    * make them type again. Nothing saved is touched: the week is elsewhere.
    */
   function reset() {
-    setDraft(newDraft(defaultRate));
+    setDraft(newDraft(defaultRate, defaultEmployer));
     setCalculation(null);
-    setShowRate(defaultRate !== "");
+    setShowRate(defaultEmployer !== null || defaultRate !== "");
     setShowBreak(false);
     setAsked(null);
     setSavedId(null);
@@ -302,6 +316,7 @@ export default function CalculatorView({
       />
       <ShiftEditor
         draft={draft}
+        employers={employers}
         entered={entered}
         errors={failed ? calculation.errors : NO_ERRORS}
         steppedBack={answerLeads}
