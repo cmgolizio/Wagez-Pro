@@ -119,6 +119,7 @@ export function createSavedShift(input = {}) {
     shift: {
       id: createShiftId(),
       ...shiftValues(values),
+      ...(input.employerId ? { employerId: input.employerId } : {}),
       createdAt: timestamp,
       updatedAt: timestamp,
     },
@@ -149,6 +150,7 @@ export function updateSavedShift(shift, input = {}) {
     shift: {
       ...shift,
       ...shiftValues(values),
+      employerId: input.employerId || null,
       updatedAt: new Date().toISOString(),
     },
   };
@@ -166,6 +168,7 @@ export function shiftDraft(shift) {
     startTime: shift.startTime,
     endTime: shift.endTime,
     hourlyRate: formatRateInput(shift.hourlyRateCents),
+    employerId: shift.employerId ?? "",
     breakMinutes: shift.breakMinutes === 0 ? "" : String(shift.breakMinutes),
   };
 }
@@ -227,6 +230,7 @@ export function normalizeSavedShift(value) {
     endTime: values.endTime,
     hourlyRateCents: values.hourlyRateCents,
     breakMinutes: values.breakMinutes,
+    ...(typeof value.employerId === "string" && value.employerId !== "" ? { employerId: value.employerId } : {}),
     createdAt: createdAt ?? new Date(0).toISOString(),
     updatedAt: updatedAt ?? new Date(0).toISOString(),
   };
