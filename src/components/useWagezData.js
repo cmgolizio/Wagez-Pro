@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { loadWagezData } from "@/lib/storage/wagezStorage";
 
 import {
   getWagezServerSnapshot,
@@ -104,7 +105,24 @@ export default function useWagezData() {
   }, []);
 
   const restoreData = useCallback((data) => {
-    return updateWagezData(() => data);
+    if (!updateWagezData(() => data)) return false;
+
+    // Check the actual device storage, not only React's in-memory snapshot.
+    // A confirmation must mean the shift records really survived the write.
+    const saved = loadWagezData();
+    if (saved.shifts.length !== data.shifts.length ||
+        saved.employers.length !== data.employers.length) return false;
+
+    const byId = new Map(saved.shifts.map((shift) => [shift.id, shift]));
+    return data.shifts.every((shift) => {
+      const persisted = byId.get(shift.id);
+      return persisted !== undefined &&
+        persisted.date === shift.date &&
+        persisted.startTime === shift.startTime &&
+        persisted.endTime === shift.endTime &&
+        persisted.hourlyRateCents === shift.hourlyRateCents &&
+        persisted.breakMinutes === shift.breakMinutes;
+    });
   }, []);
 
   const setOvertime = useCallback((changes) => {

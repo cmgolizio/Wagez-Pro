@@ -50,6 +50,7 @@ export default function WeekView({
   weekStartsOn,
   overtime,
   ready,
+  importTarget = null,
   onAdd,
   onUpdate,
   onDelete,
@@ -64,6 +65,15 @@ export default function WeekView({
   const [landing, setLanding] = useState(null);
   const headingRef = useRef(null);
   const listRef = useRef(null);
+
+  // A successful restore has an explicit destination: its newest saved week.
+  // Resetting the employer filter ensures the restored records are visible.
+  useEffect(() => {
+    if (!importTarget) return;
+    setChosenWeek(importTarget.weekStart);
+    setEmployerFilter("all");
+    setOpen(null);
+  }, [importTarget]);
 
   /*
     An edit can move a shift into another week, a duplicate can put a copy
@@ -150,7 +160,8 @@ export default function WeekView({
     employerFilter === "all" || (employerFilter === "none" ? !shift.employerId : shift.employerId === employerFilter));
   const totals = summarizeAllocated(weekShifts);
   // Somewhere to go when this week is empty but the user's work is not.
-  const [latestWeek] = groupShiftsByWeek(shifts, weekStartsOn);
+  const availableWeeks = groupShiftsByWeek(shifts, weekStartsOn);
+  const [latestWeek] = availableWeeks;
   const elsewhere =
     weekShifts.length === 0 && latestWeek !== undefined ? latestWeek : null;
 
@@ -190,6 +201,38 @@ export default function WeekView({
       </nav>
 
       <div className='wagez-week-body'>
+        {importTarget && weekStart === importTarget.weekStart ? (
+          <p className="text-sm font-bold" role="status">
+            Restored {importTarget.count} shifts. Showing the latest imported week.
+          </p>
+        ) : null}
+        {availableWeeks.length ? (
+          <div className="flex flex-col gap-1 shrink-0">
+            <label className="wagez-field-label" htmlFor="week-saved-jump">
+              Saved weeks ({shifts.length} shifts total)
+            </label>
+            <div className="wagez-field">
+              <select
+                id="week-saved-jump"
+                className="w-full min-h-10 bg-transparent font-bold"
+                value={availableWeeks.some((week) => week.weekStart === weekStart) ? weekStart : ""}
+                onChange={(event) => {
+                  if (event.target.value) {
+                    setEmployerFilter("all");
+                    goToWeek(event.target.value);
+                  }
+                }}
+              >
+                <option value="">Jump to a saved week</option>
+                {availableWeeks.map((week) => (
+                  <option key={week.weekStart} value={week.weekStart}>
+                    {formatWeekRange(week.weekStart)} ({week.shifts.length})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-1 shrink-0">
           <label className="wagez-field-label" htmlFor="week-employer-filter">Filter by employer</label>
           <div className="wagez-field">

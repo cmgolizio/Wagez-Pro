@@ -52,6 +52,7 @@ export default function DataBackup({ data, onRestore }) {
   return (
     <section className="wagez-settings wagez-employers">
       <h2 className="text-xl font-extrabold">Backup & restore</h2>
+      <p className="text-sm font-semibold" role="status">Currently saved on this device: {data.shifts.length} shifts</p>
       <p className="text-sm font-semibold">Your data lives on this device. Export a backup before reinstalling Wagez or switching phones.</p>
       <div className="flex flex-wrap gap-2">
         <button className="wagez-quiet-button wagez-shift-card" type="button" onClick={exportBackup}>Export all data (.json)</button>
@@ -60,7 +61,8 @@ export default function DataBackup({ data, onRestore }) {
       </div>
       {error ? <p className="wagez-alert" role="alert">{error}</p> : null}
       {pending ? <div className="wagez-shift-card flex flex-col gap-2">
-        <p className="font-semibold">Replace all current data with {pending.shifts.length} shifts and {pending.employers.length} employers? This cannot be undone without a backup.</p>
+        <p className="font-semibold">Backup read: {pending.shifts.length} shifts and {pending.employers.length} employers. Not imported yet.</p>
+        <p className="font-semibold">Confirming replaces all current Wagez data. Export your current data first if you need to keep it.</p>
         <div className="flex gap-2">
           <button type="button" className="wagez-quiet-button" onClick={() => {
             if (onRestore(pending) !== false) {
@@ -68,7 +70,7 @@ export default function DataBackup({ data, onRestore }) {
             } else {
               setError("Restore failed: your browser did not save the imported data.");
             }
-          }}>Replace data</button>
+          }}>Confirm restore ({pending.shifts.length} shifts)</button>
           <button type="button" className="wagez-quiet-button" onClick={() => setPending(null)}>Cancel</button>
         </div>
       </div> : null}
