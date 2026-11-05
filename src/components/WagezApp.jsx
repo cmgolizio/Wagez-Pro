@@ -8,6 +8,7 @@ import WeekView from "./week/WeekView";
 import EmployerSettings from "./settings/EmployerSettings";
 import DataBackup from "./settings/DataBackup";
 import useWagezData from "./useWagezData";
+import { startOfWeek } from "@/lib/dates/isoDate";
 
 const SHIFT = "shift";
 const WEEK = "week";
@@ -44,6 +45,23 @@ export default function WagezApp() {
     setOvertime,
   } = useWagezData();
   const [view, setView] = useState(SHIFT);
+  const [importTarget, setImportTarget] = useState(null);
+
+  function handleRestore(data) {
+    if (restoreData(data) === false) return false;
+    if (data.shifts.length > 0) {
+      const latestDate = data.shifts.reduce(
+        (latest, shift) => shift.date > latest ? shift.date : latest,
+        data.shifts[0].date,
+      );
+      setImportTarget({
+        weekStart: startOfWeek(latestDate, data.settings.weekStartsOn),
+        count: data.shifts.length,
+      });
+      setView(WEEK);
+    }
+    return true;
+  }
 
   return (
     <main className='wagez-shell wagez-safe-area flex w-full flex-col gap-3'>
@@ -78,6 +96,7 @@ export default function WagezApp() {
           weekStartsOn={settings.weekStartsOn}
           overtime={settings.overtime}
           ready={ready}
+          importTarget={importTarget}
           onAdd={addShift}
           onUpdate={updateShift}
           onDelete={removeShift}
@@ -89,7 +108,7 @@ export default function WagezApp() {
           <EmployerSettings employers={employers} shifts={shifts}
             defaultEmployerId={settings.defaultEmployerId}
             onSave={saveEmployer} onDelete={deleteEmployer} onSetDefault={setDefaultEmployer} />
-          <DataBackup data={{ shifts, employers, settings }} onRestore={restoreData} />
+          <DataBackup data={{ shifts, employers, settings }} onRestore={handleRestore} />
         </section>
       ) : null}
     </main>
