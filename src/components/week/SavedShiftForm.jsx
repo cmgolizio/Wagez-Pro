@@ -9,6 +9,7 @@ import {
 } from "@/lib/shifts/savedShift";
 
 import BreakField from "@/components/calculator/BreakField";
+import TipField from "@/components/calculator/TipField";
 import DateField from "@/components/calculator/DateField";
 import RateField from "@/components/calculator/RateField";
 import TimeField from "@/components/calculator/TimeField";
@@ -48,6 +49,7 @@ export default function SavedShiftForm({ shift, employers = [], mode, onSave, on
   const endRef = useRef(null);
   const rateRef = useRef(null);
   const breakRef = useRef(null);
+  const tipRef = useRef(null);
 
   // A card near the bottom of the week opens into a form taller than the room
   // left under it, so bring the whole of it into view — including the way out.
@@ -89,6 +91,7 @@ export default function SavedShiftForm({ shift, employers = [], mode, onSave, on
         [saved.errors.endTime, endRef],
         [saved.errors.hourlyRate, rateRef],
         [saved.errors.breakMinutes, breakRef],
+        [saved.errors.tipCents, tipRef],
       ].find(([error]) => error !== undefined);
       firstInvalid?.[1].current?.focus();
       return;
@@ -166,6 +169,14 @@ export default function SavedShiftForm({ shift, employers = [], mode, onSave, on
         value={draft.breakMinutes}
         error={errors.breakMinutes}
         onChange={(value) => updateDraft("breakMinutes", value)}
+      />
+      <TipField
+        ref={tipRef}
+        id={field("tip")}
+        label="Tip:"
+        value={draft.tip ?? ""}
+        error={errors.tipCents}
+        onChange={(value) => updateDraft("tip", value)}
       />
 
       <div className='wagez-shift-form-actions'>

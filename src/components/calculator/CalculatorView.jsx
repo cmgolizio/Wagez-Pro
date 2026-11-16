@@ -41,6 +41,7 @@ function newDraft(defaultRate, employer = null) {
     hourlyRate: employer ? formatRateInput(employer.hourlyRateCents) : defaultRate,
     employerId: employer?.id ?? "",
     breakMinutes: "",
+    tip: "",
   };
 }
 
@@ -85,6 +86,7 @@ export default function CalculatorView({
   // way until they are asked for.
   const [showRate, setShowRate] = useState(false);
   const [showBreak, setShowBreak] = useState(false);
+  const [showTip, setShowTip] = useState(false);
   // Whether the saved default rate has been put into the shift on screen yet.
   const manualEmployerSelection = useRef(false);
   const manualRateEntry = useRef(false);
@@ -216,6 +218,14 @@ export default function CalculatorView({
     if (!next && draft.breakMinutes !== "") updateDraft("breakMinutes", "");
   }
 
+  /** Tips behave like a break: optional, revealed on request and cleared when hidden. */
+  function toggleTip() {
+    const next = !showTip;
+    setShowTip(next);
+    setAsked({ field: "tip" });
+    if (!next && draft.tip !== "") updateDraft("tip", "");
+  }
+
   /**
    * Keep the rate on screen as the one Wagez opens on, or stop keeping it.
    *
@@ -309,6 +319,7 @@ export default function CalculatorView({
     setCalculation(null);
     setShowRate(defaultEmployer !== null || defaultRate !== "");
     setShowBreak(false);
+    setShowTip(false);
     setAsked(null);
     setSavedId(null);
     setSavedKey(null);
@@ -353,12 +364,14 @@ export default function CalculatorView({
         steppedBack={answerLeads}
         showRate={showRate}
         showBreak={showBreak}
+        showTip={showTip}
         asked={asked}
         rateIsDefault={rateIsDefault}
         canBeDefault={rateCents !== null}
         onChange={updateDraft}
         onToggleRate={toggleRate}
         onToggleBreak={toggleBreak}
+        onToggleTip={toggleTip}
         onToggleDefaultRate={toggleDefaultRate}
         onCalculate={calculate}
         onReset={reset}

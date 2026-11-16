@@ -108,7 +108,7 @@ export default function ResultDisplay({
             <p className='wagez-duration'>
               {formatDuration(result.paidMinutes)}
             </p>
-            {result.basePayCents === null ? null : (
+            {result.totalPayCents === null ? null : (
               <>
                 <p className='wagez-caption mt-2'>and made:</p>
                 {/* Money keeps its green only while it is the live answer:
@@ -116,8 +116,11 @@ export default function ResultDisplay({
                 <p
                   className={`wagez-money${stale ? " wagez-money-muted" : ""}`}
                 >
-                  {formatCents(result.basePayCents)}
+                  {formatCents(result.totalPayCents)}
                 </p>
+                {result.tipCents > 0 ? (
+                  <p className="wagez-caption">Includes {formatCents(result.tipCents)} tips</p>
+                ) : null}
               </>
             )}
           </div>
