@@ -5,6 +5,7 @@ import { useState } from "react";
 import CalculatorView from "./calculator/CalculatorView";
 import ViewSwitch from "./ui/ViewSwitch";
 import WeekView from "./week/WeekView";
+import PayPeriodsView from "./pay-periods/PayPeriodsView";
 import EmployerSettings from "./settings/EmployerSettings";
 import DataBackup from "./settings/DataBackup";
 import AdpTimecardImport from "./settings/AdpTimecardImport";
@@ -13,11 +14,13 @@ import { startOfWeek } from "@/lib/dates/isoDate";
 
 const SHIFT = "shift";
 const WEEK = "week";
+const PAY_PERIODS = "pay-periods";
 const SETTINGS = "settings";
 
 const VIEWS = [
   { id: SHIFT, label: "Shift" },
   { id: WEEK, label: "Week" },
+  { id: PAY_PERIODS, label: "Pay periods" },
   { id: SETTINGS, label: "Settings" },
 ];
 
@@ -45,6 +48,7 @@ export default function WagezApp() {
     removeShift,
     setDefaultRateCents,
     setOvertime,
+    setPayPeriod,
   } = useWagezData();
   const [view, setView] = useState(SHIFT);
   const [importTarget, setImportTarget] = useState(null);
@@ -119,6 +123,10 @@ export default function WagezApp() {
           onSetOvertime={setOvertime}
         />
       </div>
+      {view === PAY_PERIODS ? (
+        <PayPeriodsView shifts={shifts} employers={employers}
+          settings={settings} ready={ready} onSetPayPeriod={setPayPeriod} />
+      ) : null}
       {view === SETTINGS ? (
         <section className="wagez-week flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
           <EmployerSettings employers={employers} shifts={shifts}

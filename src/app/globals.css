@@ -1669,3 +1669,20 @@ summary {
     transform: none;
   }
 }
+
+/* Four views remain usable on narrow PWA screens without horizontal clipping. */
+@media (max-width: 34rem) {
+  .wagez-switch {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.125rem;
+  }
+
+  .wagez-switch button {
+    min-width: 0;
+    padding-inline: 0.2rem;
+    font-size: 0.75rem;
+    line-height: 1.15;
+  }
+}

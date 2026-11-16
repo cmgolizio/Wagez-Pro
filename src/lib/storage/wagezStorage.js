@@ -16,6 +16,7 @@ import {
 } from "@/lib/calculations/overtime";
 import { SUNDAY, MONDAY } from "@/lib/dates/isoDate";
 import { normalizeSavedShift } from "@/lib/shifts/savedShift";
+import { normalizePayPeriod } from "@/lib/pay-periods/biweekly";
 
 export const STORAGE_KEY = "wagez:v2";
 
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS = {
   weekStartsOn: SUNDAY,
   overtime: DEFAULT_OVERTIME,
   defaultEmployerId: null,
+  payPeriod: null,
 };
 
 const WEEK_STARTS = [SUNDAY, MONDAY];
@@ -80,7 +82,12 @@ function normalizeEmployers(value) {
     if (!id || !name || name.length > 100 || seen.has(id)) continue;
     if (!Number.isSafeInteger(entry.hourlyRateCents) || entry.hourlyRateCents < 0) continue;
     seen.add(id);
-    employers.push({ id, name, hourlyRateCents: entry.hourlyRateCents });
+    const companyName = typeof entry.companyName === "string"
+      ? entry.companyName.trim() : "";
+    employers.push({
+      id, name, hourlyRateCents: entry.hourlyRateCents,
+      ...(companyName && companyName.length <= 100 ? { companyName } : {}),
+    });
   }
   return employers;
 }
@@ -97,6 +104,7 @@ function normalizeSettings(value, employers) {
     overtime: normalizeOvertime(settings.overtime),
     defaultEmployerId: employers.some((e) => e.id === settings.defaultEmployerId)
       ? settings.defaultEmployerId : null,
+    payPeriod: normalizePayPeriod(settings.payPeriod),
   };
 }
 
