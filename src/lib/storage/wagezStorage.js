@@ -16,6 +16,7 @@ import {
 } from "@/lib/calculations/overtime";
 import { SUNDAY, MONDAY } from "@/lib/dates/isoDate";
 import { normalizeSavedShift } from "@/lib/shifts/savedShift";
+import { normalizePayPeriod } from "@/lib/pay-periods/biweekly";
 
 export const STORAGE_KEY = "wagez:v2";
 
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS = {
   weekStartsOn: SUNDAY,
   overtime: DEFAULT_OVERTIME,
   defaultEmployerId: null,
+  payPeriod: null,
 };
 
 const WEEK_STARTS = [SUNDAY, MONDAY];
@@ -97,6 +99,7 @@ function normalizeSettings(value, employers) {
     overtime: normalizeOvertime(settings.overtime),
     defaultEmployerId: employers.some((e) => e.id === settings.defaultEmployerId)
       ? settings.defaultEmployerId : null,
+    payPeriod: normalizePayPeriod(settings.payPeriod),
   };
 }
 

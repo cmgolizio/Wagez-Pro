@@ -192,6 +192,14 @@ export default function useWagezData() {
     });
   }, []);
 
+  /** Save the recurring pay period and payday, without touching any shift. */
+  const setPayPeriod = useCallback((schedule) => {
+    return updateWagezData((current) => ({
+      ...current,
+      settings: { ...current.settings, payPeriod: schedule },
+    }));
+  }, []);
+
   const setOvertime = useCallback((changes) => {
     updateWagezData((current) => ({
       ...current,
@@ -221,6 +229,7 @@ export default function useWagezData() {
     removeShift,
     setDefaultRateCents,
     setOvertime,
+    setPayPeriod,
     saveEmployer,
     deleteEmployer,
     setDefaultEmployer,
