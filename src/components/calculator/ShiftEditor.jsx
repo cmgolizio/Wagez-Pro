@@ -5,12 +5,14 @@ import { PM } from "@/lib/calculations/time";
 import RevealToggle from "@/components/ui/RevealToggle";
 
 import BreakField from "./BreakField";
+import TipField from "./TipField";
 import DefaultRateToggle from "./DefaultRateToggle";
 import RateField from "./RateField";
 import TimeField from "./TimeField";
 
 const RATE_FIELD = "hourly-rate";
 const BREAK_FIELD = "break-minutes";
+const TIP_FIELD = "tip-amount";
 
 /**
  * Follow an optional field on and off screen.
@@ -73,12 +75,14 @@ export default function ShiftEditor({
   steppedBack = false,
   showRate,
   showBreak,
+  showTip,
   asked = null,
   rateIsDefault,
   canBeDefault,
   onChange,
   onToggleRate,
   onToggleBreak,
+  onToggleTip,
   onToggleDefaultRate,
   onCalculate,
   onReset,
@@ -88,8 +92,10 @@ export default function ShiftEditor({
   const endRef = useRef(null);
   const rateRef = useRef(null);
   const breakRef = useRef(null);
+  const tipRef = useRef(null);
   const rateRevealRef = useRef(null);
   const breakRevealRef = useRef(null);
+  const tipRevealRef = useRef(null);
   const doMathRef = useRef(null);
 
   useAskedFocus(
@@ -104,6 +110,12 @@ export default function ShiftEditor({
     breakRef,
     breakRevealRef,
   );
+  useAskedFocus(
+    asked?.field === "tip" ? asked : null,
+    showTip,
+    tipRef,
+    tipRevealRef,
+  );
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -117,6 +129,7 @@ export default function ShiftEditor({
       [calculation.errors.endTime, endRef],
       [calculation.errors.hourlyRate, rateRef],
       [calculation.errors.breakMinutes, breakRef],
+      [calculation.errors.tipCents, tipRef],
     ].find(([error]) => error !== undefined);
     firstInvalid?.[1].current?.focus();
   }
@@ -241,11 +254,32 @@ export default function ShiftEditor({
         />
       ) : null}
 
+      {showTip ? (
+        <TipField
+          ref={tipRef}
+          id={TIP_FIELD}
+          label="Tip:"
+          value={draft.tip}
+          error={errors.tipCents}
+          onChange={(value) => onChange("tip", value)}
+          action={
+            <RevealToggle
+              ref={tipRevealRef}
+              label="Tip"
+              removeLabel="Remove the tip"
+              open
+              controls={TIP_FIELD}
+              onToggle={onToggleTip}
+            />
+          }
+        />
+      ) : null}
+
       {/* The optional half of a shift, each kept to one word until it is
           wanted. Whatever is still on offer stays here, together, on the last
           line before the button — revealing one lifts it out of the row and
           into a field above, taking the way back out with it. */}
-      {showRate && showBreak ? null : (
+      {showRate && showBreak && showTip ? null : (
         <div className='wagez-reveal-row'>
           {showRate ? null : (
             <RevealToggle
@@ -265,6 +299,16 @@ export default function ShiftEditor({
               open={false}
               controls={BREAK_FIELD}
               onToggle={onToggleBreak}
+            />
+          )}
+          {showTip ? null : (
+            <RevealToggle
+              ref={tipRevealRef}
+              label="Tip"
+              removeLabel="Remove the tip"
+              open={false}
+              controls={TIP_FIELD}
+              onToggle={onToggleTip}
             />
           )}
         </div>

@@ -39,6 +39,9 @@ export default function WeekSummary({ totals, overtime }) {
           </span>
         </p>
       ) : null}
+      {totals.tipCents > 0 ? (
+        <p className="wagez-week-split">Tips {formatCents(totals.tipCents)}</p>
+      ) : null}
       {payCents === null ? null : (
         <p className='wagez-week-money'>{formatCents(payCents)}</p>
       )}

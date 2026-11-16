@@ -27,6 +27,7 @@ const VALUE_FIELDS = [
   "endTime",
   "hourlyRateCents",
   "breakMinutes",
+  "tipCents",
 ];
 
 /**

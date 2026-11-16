@@ -1,6 +1,6 @@
 import { parseMinutes } from "@/lib/calculations/time";
 import { parseRateCents } from "@/lib/calculations/wages";
-import { formatHourlyRate } from "@/lib/formatters/currency";
+import { formatCents, formatHourlyRate } from "@/lib/formatters/currency";
 import { formatDurationCompact } from "@/lib/formatters/duration";
 import { formatTime } from "@/lib/formatters/time";
 
@@ -17,6 +17,7 @@ import { formatTime } from "@/lib/formatters/time";
 export function currentValues(draft) {
   const rateCents = parseRateCents(draft.hourlyRate);
   const breakMinutes = parseMinutes(draft.breakMinutes);
+  const tipCents = parseRateCents(draft.tip);
 
   return [
     {
@@ -40,6 +41,11 @@ export function currentValues(draft) {
         breakMinutes === null || breakMinutes === 0
           ? null
           : formatDurationCompact(breakMinutes),
+    },
+    {
+      key: "tip",
+      label: "Tip:",
+      value: tipCents === null || tipCents === 0 ? null : formatCents(tipCents),
     },
   ].filter((entry) => entry.value !== null);
 }

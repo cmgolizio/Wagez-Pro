@@ -66,7 +66,11 @@ export default function SavedShiftCard({
   const day = formatShiftDay(shift.date);
   // What this shift was actually paid, which is the week's answer where it has
   // one — a shift can be part regular and part overtime.
-  const payCents = pay === null ? derived.basePayCents : pay.payCents;
+  const wageCents = pay === null ? derived.basePayCents : pay.payCents;
+  const tipCents = derived.tipCents ?? 0;
+  const payCents = wageCents === null
+    ? (tipCents > 0 ? tipCents : null)
+    : wageCents + tipCents;
   // Overtime is only ever named where the week has both priced this shift and
   // been told how it prices overtime.
   const overtimeMinutes =
@@ -123,7 +127,14 @@ export default function SavedShiftCard({
           )}
         </span>
         {payCents === null ? null : (
-          <span className='wagez-shift-pay'>{formatCents(payCents)}</span>
+          <span className='wagez-shift-pay'>
+            {formatCents(payCents)}
+            {tipCents > 0 ? (
+              <span className="block text-xs font-semibold">
+                + {formatCents(tipCents)} tips
+              </span>
+            ) : null}
+          </span>
         )}
       </p>
 

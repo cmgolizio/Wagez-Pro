@@ -130,6 +130,7 @@ export function summarizeAllocated(allocated) {
     regularMinutes: 0,
     overtimeMinutes: 0,
     payCents: null,
+    tipCents: 0,
     regularPayCents: null,
     overtimePayCents: null,
   };
@@ -139,11 +140,16 @@ export function summarizeAllocated(allocated) {
     totals.elapsedMinutes += derived.elapsedMinutes;
     totals.breakMinutes += derived.breakMinutes;
     totals.paidMinutes += derived.paidMinutes;
+    const tips = derived.tipCents ?? 0;
+    totals.tipCents += tips;
     totals.regularMinutes += pay.regularMinutes;
     totals.overtimeMinutes += pay.overtimeMinutes;
 
+    if (pay.payCents !== null || tips > 0) {
+      totals.payCents = (totals.payCents ?? 0) + (pay.payCents ?? 0) + tips;
+    }
+
     if (pay.payCents !== null) {
-      totals.payCents = (totals.payCents ?? 0) + pay.payCents;
       totals.regularPayCents =
         (totals.regularPayCents ?? 0) + pay.regularPayCents;
       totals.overtimePayCents =

@@ -96,6 +96,7 @@ function shiftValues(values) {
     endTime: values.endTime,
     hourlyRateCents: values.hourlyRateCents,
     breakMinutes: values.breakMinutes,
+    ...(values.tipCents > 0 ? { tipCents: values.tipCents } : {}),
   };
 }
 
@@ -143,13 +144,15 @@ export function updateSavedShift(shift, input = {}) {
   const { ok, errors, message, values } = validateSavedShiftInput(input);
   if (!ok) return { ok: false, errors, message, shift: null };
 
+  const updated = { ...shift, ...shiftValues(values) };
+  if (!values.tipCents) delete updated.tipCents;
+
   return {
     ok: true,
     errors: {},
     message: null,
     shift: {
-      ...shift,
-      ...shiftValues(values),
+      ...updated,
       employerId: input.employerId || null,
       updatedAt: new Date().toISOString(),
     },
@@ -170,6 +173,7 @@ export function shiftDraft(shift) {
     hourlyRate: formatRateInput(shift.hourlyRateCents),
     employerId: shift.employerId ?? "",
     breakMinutes: shift.breakMinutes === 0 ? "" : String(shift.breakMinutes),
+    ...(shift.tipCents > 0 ? { tip: (shift.tipCents / 100).toFixed(2) } : {}),
   };
 }
 
@@ -215,6 +219,7 @@ export function normalizeSavedShift(value) {
     endTime: value.endTime,
     hourlyRateCents: value.hourlyRateCents,
     breakMinutes: value.breakMinutes,
+    tipCents: value.tipCents,
   });
   if (!ok) return null;
 
@@ -230,6 +235,7 @@ export function normalizeSavedShift(value) {
     endTime: values.endTime,
     hourlyRateCents: values.hourlyRateCents,
     breakMinutes: values.breakMinutes,
+    ...(values.tipCents > 0 ? { tipCents: values.tipCents } : {}),
     ...(typeof value.employerId === "string" && value.employerId !== "" ? { employerId: value.employerId } : {}),
     createdAt: createdAt ?? new Date(0).toISOString(),
     updatedAt: updatedAt ?? new Date(0).toISOString(),

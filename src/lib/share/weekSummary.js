@@ -65,6 +65,7 @@ export function formatWeekSummary(
     );
   }
 
+  if (totals.tipCents > 0) lines.push(`${formatCents(totals.tipCents)} tips`);
   if (payCents !== null) lines.push(`${formatCents(payCents)} gross`);
 
   return lines.join("\n");

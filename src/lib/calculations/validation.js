@@ -23,6 +23,8 @@ export const MESSAGES = {
   breakNegative: "A break can't be negative.",
   breakInvalid: "That break doesn't look right.",
   breakTooLong: "That break is longer than the shift.",
+  tipNegative: "A tip can't be negative.",
+  tipInvalid: "That tip amount doesn't look right.",
   dateInvalid: "That date doesn't look right.",
 };
 
@@ -32,6 +34,7 @@ const FIELD_ORDER = [
   "endTime",
   "hourlyRate",
   "breakMinutes",
+  "tipCents",
   "date",
 ];
 
@@ -110,6 +113,28 @@ function validateBreak(value) {
   return { value: minutes, error: null };
 }
 
+/** Tip is a flat dollar amount per shift, stored as integer cents. */
+function validateTip({ tip, tipCents }) {
+  if (tipCents !== undefined && tipCents !== null) {
+    if (!Number.isSafeInteger(tipCents) || tipCents < 0) {
+      return {
+        value: null,
+        error: tipCents < 0 ? MESSAGES.tipNegative : MESSAGES.tipInvalid,
+      };
+    }
+    return { value: tipCents, error: null };
+  }
+  if (isBlank(tip)) return { value: 0, error: null };
+  const cents = parseRateCents(tip);
+  if (cents === null || !Number.isSafeInteger(cents) || cents < 0) {
+    return {
+      value: null,
+      error: isNegativeInput(tip) ? MESSAGES.tipNegative : MESSAGES.tipInvalid,
+    };
+  }
+  return { value: cents, error: null };
+}
+
 /** A date is optional; a standalone calculation never needs one. */
 function validateDate(value) {
   if (isBlank(value)) return { value: null, error: null };
@@ -158,6 +183,9 @@ export function validateShiftInput(input = {}) {
   const unpaidBreak = validateBreak(input.breakMinutes);
   if (unpaidBreak.error) errors.breakMinutes = unpaidBreak.error;
 
+  const tips = validateTip(input);
+  if (tips.error) errors.tipCents = tips.error;
+
   const date = validateDate(input.date);
   if (date.error) errors.date = date.error;
 
@@ -180,6 +208,7 @@ export function validateShiftInput(input = {}) {
       endTime: end.value,
       hourlyRateCents: rate.value,
       breakMinutes: unpaidBreak.value,
+      tipCents: tips.value,
       date: date.value,
     },
   };

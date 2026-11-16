@@ -39,10 +39,13 @@ export function calculateShift(input = {}) {
     return { ok: false, errors, message, result: null };
   }
 
-  const { startTime, endTime, hourlyRateCents, breakMinutes, date } = values;
+  const { startTime, endTime, hourlyRateCents, breakMinutes, tipCents, date } = values;
   const elapsedMinutes = calculateElapsedMinutes(startTime, endTime);
   const paidMinutes = calculatePaidMinutes(elapsedMinutes, breakMinutes);
   const overnight = crossesMidnight(startTime, endTime);
+  const wageCents = hourlyRateCents === null
+    ? null
+    : calculatePayCents(paidMinutes, hourlyRateCents);
 
   return {
     ok: true,
@@ -57,12 +60,13 @@ export function calculateShift(input = {}) {
       crossesMidnight: overnight,
       hourlyRateCents,
       breakMinutes,
+      tipCents,
       elapsedMinutes,
       paidMinutes,
-      basePayCents:
-        hourlyRateCents === null
-          ? null
-          : calculatePayCents(paidMinutes, hourlyRateCents),
+      basePayCents: wageCents,
+      totalPayCents: wageCents === null
+        ? (tipCents > 0 ? tipCents : null)
+        : wageCents + tipCents,
     },
   };
 }
