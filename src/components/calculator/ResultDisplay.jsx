@@ -122,7 +122,7 @@ export default function ResultDisplay({
                   <p className="wagez-caption">Includes {formatCents(result.tipCents)} tips</p>
                 ) : null}
               </>
-            )
+            )}
           </div>
 
           {/* A stale answer is not this shift, so there is nothing to save. */}
