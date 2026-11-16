@@ -6,6 +6,7 @@
 
 import { addDays, isIsoDate, startOfWeek } from "@/lib/dates/isoDate";
 import { allocateShifts, summarizeAllocated } from "@/lib/shifts/week";
+import { matchesEmployerFilter } from "@/lib/employers/company";
 
 export const PAY_PERIOD_DAYS = 14;
 const DAY_MS = 86400000;
@@ -55,7 +56,7 @@ export function payPeriodDetails(
   shifts,
   schedule,
   date,
-  { overtime, weekStartsOn = "sunday", employerId = "all" } = {},
+  { overtime, weekStartsOn = "sunday", employerId = "all", employers = [] } = {},
 ) {
   const period = periodForDate(date, schedule);
   if (!period) return null;
@@ -74,9 +75,7 @@ export function payPeriodDetails(
     for (const entry of allocation) {
       const day = entry.shift.date;
       if (day < period.start || day > period.end) continue;
-      if (employerId === "none" && entry.shift.employerId) continue;
-      if (employerId !== "all" && employerId !== "none" &&
-          entry.shift.employerId !== employerId) continue;
+      if (!matchesEmployerFilter(entry.shift, employerId, employers)) continue;
       priced.push(entry);
     }
   }

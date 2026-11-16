@@ -9,6 +9,7 @@ import {
   todayIsoDate,
 } from "@/lib/dates/isoDate";
 import { formatWeekRange } from "@/lib/formatters/date";
+import { companyGroups, matchesEmployerFilter } from "@/lib/employers/company";
 import { formatWeekSummary } from "@/lib/share/weekSummary";
 import {
   allocateShifts,
@@ -157,7 +158,7 @@ export default function WeekView({
   // switched on, what a shift is worth depends on the hours that came before it.
   const allWeekShifts = allocateShifts(shiftsForWeek(shifts, weekStart), overtime);
   const weekShifts = allWeekShifts.filter(({ shift }) =>
-    employerFilter === "all" || (employerFilter === "none" ? !shift.employerId : shift.employerId === employerFilter));
+    matchesEmployerFilter(shift, employerFilter, employers));
   const totals = summarizeAllocated(weekShifts);
   // Somewhere to go when this week is empty but the user's work is not.
   const availableWeeks = groupShiftsByWeek(shifts, weekStartsOn);
@@ -234,13 +235,24 @@ export default function WeekView({
           </div>
         ) : null}
         <div className="flex flex-col gap-1 shrink-0">
-          <label className="wagez-field-label" htmlFor="week-employer-filter">Filter by employer</label>
+          <label className="wagez-field-label" htmlFor="week-employer-filter">Filter by company or rate profile</label>
           <div className="wagez-field">
             <select id="week-employer-filter" className="w-full bg-transparent font-bold min-h-10"
               value={employerFilter} onChange={(event) => { setEmployerFilter(event.target.value); setOpen(null); }}>
               <option value="all">All employers</option>
               <option value="none">No employer</option>
-              {employers.map((employer) => <option key={employer.id} value={employer.id}>{employer.name}</option>)}
+              <optgroup label="Companies (all rates)">
+                {companyGroups(employers).map((group) => (
+                  <option key={group.key} value={`company:${group.key}`}>
+                    {group.name} ({group.profileIds.length} {group.profileIds.length === 1 ? "rate" : "rates"})
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Individual rate profiles">
+                {employers.map((employer) => (
+                  <option key={employer.id} value={`employer:${employer.id}`}>{employer.name}</option>
+                ))}
+              </optgroup>
             </select>
           </div>
         </div>

@@ -82,7 +82,12 @@ function normalizeEmployers(value) {
     if (!id || !name || name.length > 100 || seen.has(id)) continue;
     if (!Number.isSafeInteger(entry.hourlyRateCents) || entry.hourlyRateCents < 0) continue;
     seen.add(id);
-    employers.push({ id, name, hourlyRateCents: entry.hourlyRateCents });
+    const companyName = typeof entry.companyName === "string"
+      ? entry.companyName.trim() : "";
+    employers.push({
+      id, name, hourlyRateCents: entry.hourlyRateCents,
+      ...(companyName && companyName.length <= 100 ? { companyName } : {}),
+    });
   }
   return employers;
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { addDays, todayIsoDate } from "@/lib/dates/isoDate";
 import { formatCents } from "@/lib/formatters/currency";
+import { companyGroups } from "@/lib/employers/company";
 import { formatDurationCompact } from "@/lib/formatters/duration";
 import { formatShiftDay, formatWeekRange } from "@/lib/formatters/date";
 import {
@@ -94,6 +95,7 @@ export default function PayPeriodsView({
         overtime: settings.overtime,
         weekStartsOn: settings.weekStartsOn,
         employerId: employerFilter,
+        employers,
       })
     : null;
 
@@ -219,7 +221,7 @@ export default function PayPeriodsView({
 
             <div className="flex flex-col gap-1">
               <label className="wagez-field-label" htmlFor="period-employer">
-                Earnings from employer
+                Earnings from company or rate profile
               </label>
               <div className="wagez-field">
                 <select
@@ -230,11 +232,20 @@ export default function PayPeriodsView({
                 >
                   <option value="all">All employers</option>
                   <option value="none">No employer assigned</option>
-                  {employers.map((employer) => (
-                    <option key={employer.id} value={employer.id}>
-                      {employer.name}
-                    </option>
-                  ))}
+                  <optgroup label="Companies (all rates)">
+                    {companyGroups(employers).map((group) => (
+                      <option key={group.key} value={`company:${group.key}`}>
+                        {group.name} ({group.profileIds.length} {group.profileIds.length === 1 ? "rate" : "rates"})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Individual rate profiles">
+                    {employers.map((employer) => (
+                      <option key={employer.id} value={`employer:${employer.id}`}>
+                        {employer.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
             </div>
