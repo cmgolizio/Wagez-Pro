@@ -2,6 +2,8 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { loadWagezData } from "@/lib/storage/wagezStorage";
+import { createSavedShift } from "@/lib/shifts/savedShift";
+import { shiftTimeKey } from "@/lib/adp/timecard";
 
 import {
   getWagezServerSnapshot,
@@ -104,6 +106,71 @@ export default function useWagezData() {
     }));
   }, []);
 
+  /**
+   * Append reviewed ADP punches in one validated storage transaction.
+   * Never overwrite user-entered shifts or recalculate historical pay rates.
+   */
+  const importAdpShifts = useCallback((entries, employerId, rateCents) => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return { ok: false, added: 0, message: "Choose at least one shift." };
+    }
+    if (employerId && !getWagezSnapshot().employers.some((e) => e.id === employerId)) {
+      return { ok: false, added: 0, message: "Choose an existing employer." };
+    }
+    if (rateCents !== null && (!Number.isSafeInteger(rateCents) || rateCents < 0)) {
+      return { ok: false, added: 0, message: "The hourly rate is invalid." };
+    }
+
+    const current = getWagezSnapshot();
+    const existingKeys = new Set(current.shifts.map(shiftTimeKey));
+    const existingDates = new Set(current.shifts.map((shift) => shift.date));
+    const submitted = new Set();
+    const additions = [];
+    let skipped = 0;
+
+    for (const entry of entries) {
+      const key = shiftTimeKey(entry);
+      if (submitted.has(key) || existingKeys.has(key) || existingDates.has(entry.date)) {
+        skipped += 1;
+        continue;
+      }
+      submitted.add(key);
+      const result = createSavedShift({
+        date: entry.date,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+        hourlyRateCents: rateCents,
+        breakMinutes: 0,
+        employerId,
+      });
+      if (!result.ok) {
+        return { ok: false, added: 0, message: result.message ?? "A shift is invalid." };
+      }
+      additions.push(result.shift);
+    }
+
+    if (!additions.length) {
+      return { ok: true, added: 0, skipped, message: "All selected shifts are already saved or conflict with existing dates." };
+    }
+
+    if (!updateWagezData((data) => ({
+      ...data,
+      shifts: [...data.shifts, ...additions],
+    }))) {
+      return { ok: false, added: 0, message: "The browser could not save these shifts. Your existing data is unchanged." };
+    }
+
+    const persisted = new Set(loadWagezData().shifts.map((shift) => shift.id));
+    if (!additions.every((shift) => persisted.has(shift.id))) {
+      return { ok: false, added: 0, message: "Import could not be verified in device storage. Check your saved shifts before retrying." };
+    }
+    const newestDate = additions.reduce(
+      (max, shift) => shift.date > max ? shift.date : max,
+      additions[0].date,
+    );
+    return { ok: true, added: additions.length, skipped, newestDate };
+  }, []);
+
   const restoreData = useCallback((data) => {
     if (!updateWagezData(() => data)) return false;
 
@@ -158,5 +225,6 @@ export default function useWagezData() {
     deleteEmployer,
     setDefaultEmployer,
     restoreData,
+    importAdpShifts,
   };
 }

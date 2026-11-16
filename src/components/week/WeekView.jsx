@@ -203,7 +203,7 @@ export default function WeekView({
       <div className='wagez-week-body'>
         {importTarget && weekStart === importTarget.weekStart ? (
           <p className="text-sm font-bold" role="status">
-            Restored {importTarget.count} shifts. Showing the latest imported week.
+            {importTarget.source === "adp" ? "Imported" : "Restored"} {importTarget.count} shifts. Showing the latest imported week.
           </p>
         ) : null}
         {availableWeeks.length ? (

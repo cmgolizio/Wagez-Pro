@@ -7,6 +7,7 @@ import ViewSwitch from "./ui/ViewSwitch";
 import WeekView from "./week/WeekView";
 import EmployerSettings from "./settings/EmployerSettings";
 import DataBackup from "./settings/DataBackup";
+import AdpTimecardImport from "./settings/AdpTimecardImport";
 import useWagezData from "./useWagezData";
 import { startOfWeek } from "@/lib/dates/isoDate";
 
@@ -38,6 +39,7 @@ export default function WagezApp() {
     deleteEmployer,
     setDefaultEmployer,
     restoreData,
+    importAdpShifts,
     addShift,
     updateShift,
     removeShift,
@@ -46,6 +48,19 @@ export default function WagezApp() {
   } = useWagezData();
   const [view, setView] = useState(SHIFT);
   const [importTarget, setImportTarget] = useState(null);
+
+  function handleAdpImport(entries, employerId, rateCents) {
+    const outcome = importAdpShifts(entries, employerId, rateCents);
+    if (outcome.ok && outcome.added > 0) {
+      setImportTarget({
+        weekStart: startOfWeek(outcome.newestDate, settings.weekStartsOn),
+        count: outcome.added,
+        source: "adp",
+      });
+      setView(WEEK);
+    }
+    return outcome;
+  }
 
   function handleRestore(data) {
     if (restoreData(data) === false) return false;
@@ -57,6 +72,7 @@ export default function WagezApp() {
       setImportTarget({
         weekStart: startOfWeek(latestDate, data.settings.weekStartsOn),
         count: data.shifts.length,
+        source: "backup",
       });
       setView(WEEK);
     }
@@ -108,6 +124,8 @@ export default function WagezApp() {
           <EmployerSettings employers={employers} shifts={shifts}
             defaultEmployerId={settings.defaultEmployerId}
             onSave={saveEmployer} onDelete={deleteEmployer} onSetDefault={setDefaultEmployer} />
+          <AdpTimecardImport employers={employers} shifts={shifts}
+            defaultEmployerId={settings.defaultEmployerId} onImport={handleAdpImport} />
           <DataBackup data={{ shifts, employers, settings }} onRestore={handleRestore} />
         </section>
       ) : null}
