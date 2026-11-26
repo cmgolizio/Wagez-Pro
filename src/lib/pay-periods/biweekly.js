@@ -7,6 +7,7 @@
 import { addDays, isIsoDate, startOfWeek } from "@/lib/dates/isoDate";
 import { allocateShifts, summarizeAllocated } from "@/lib/shifts/week";
 import { matchesEmployerFilter } from "@/lib/employers/company";
+import { withPaidTime } from "@/lib/shifts/paidTime";
 
 export const PAY_PERIOD_DAYS = 14;
 const DAY_MS = 86400000;
@@ -56,7 +57,7 @@ export function payPeriodDetails(
   shifts,
   schedule,
   date,
-  { overtime, weekStartsOn = "sunday", employerId = "all", employers = [] } = {},
+  { overtime, weekStartsOn = "sunday", employerId = "all", employers = [], paidTime = [] } = {},
 ) {
   const period = periodForDate(date, schedule);
   if (!period) return null;
@@ -80,6 +81,8 @@ export function payPeriodDetails(
     }
   }
 
+  const paid = paidTime.filter((entry) => entry.date >= period.start &&
+    entry.date <= period.end && matchesEmployerFilter(entry, employerId, employers));
   const firstEnd = addDays(period.start, 6);
   const firstWeek = priced.filter(({ shift }) => shift.date <= firstEnd);
   const secondWeek = priced.filter(({ shift }) => shift.date > firstEnd);
@@ -89,18 +92,18 @@ export function payPeriodDetails(
 
   return {
     ...period,
-    totals: summarizeAllocated(priced),
+    totals: withPaidTime(summarizeAllocated(priced), paid),
     missingRates,
     weeks: [
       {
         start: period.start,
         end: firstEnd,
-        totals: summarizeAllocated(firstWeek),
+        totals: withPaidTime(summarizeAllocated(firstWeek), paid.filter((entry) => entry.date <= firstEnd)),
       },
       {
         start: addDays(period.start, 7),
         end: period.end,
-        totals: summarizeAllocated(secondWeek),
+        totals: withPaidTime(summarizeAllocated(secondWeek), paid.filter((entry) => entry.date > firstEnd)),
       },
     ],
   };

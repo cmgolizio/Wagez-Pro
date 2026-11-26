@@ -25,22 +25,24 @@ describe("ADP Mobile screenshot OCR parser", () => {
       { date: "2026-11-24", startTime: "10:16", endTime: "17:10" },
       { date: "2026-11-25", startTime: "10:12", endTime: "17:28" },
     ]);
-    expect(result.warnings.some((warning) => /holiday/i.test(warning))).toBe(true);
+    expect(result.paidTime).toEqual([{ type: "holiday", date: "2026-11-26", minutes: 480 }]);
     expect(result.warnings.some((warning) => /2026-11-23.*displays/.test(warning))).toBe(false);
   });
 
-  it("does not turn HOLIDAY or empty days into clocked shifts", () => {
+  it("imports HOLIDAY as paid time, never fabricated punches, and ignores empty days", () => {
     const result = parseAdpScreenshotText(
       "Thursday Nov 26 08.00 Hours\nHOLIDAY 08:00 am / 08.00 Hours\nFriday Nov 27 0 Hours",
       2026,
     );
     expect(result.shifts).toEqual([]);
-    expect(result.warnings).toHaveLength(1);
+    expect(result.paidTime).toEqual([{ type: "holiday", date: "2026-11-26", minutes: 480 }]);
+    expect(result.warnings).toHaveLength(0);
   });
 
   it("rejects the wrong year rather than silently dating the shifts incorrectly", () => {
     const result = parseAdpScreenshotText(SAMPLE_TEXT, 2025);
     expect(result.shifts).toEqual([]);
+    expect(result.paidTime).toEqual([]);
     expect(result.warnings.some((warning) => /weekday disagree/.test(warning))).toBe(true);
   });
 

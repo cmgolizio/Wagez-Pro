@@ -14,6 +14,7 @@ function duration(minutes) {
 export default function AdpTimecardImport({
   employers = [],
   shifts = [],
+  paidTime = [],
   defaultEmployerId = null,
   onImport,
 }) {
@@ -33,8 +34,14 @@ export default function AdpTimecardImport({
 
   const savedKeys = new Set(shifts.map(shiftTimeKey));
   const savedDates = new Set(shifts.map((shift) => shift.date));
+  const paidKeys = new Set(paidTime.map((entry) => `${entry.type}|${entry.date}|${entry.employerId ?? ""}`));
 
   const statusOf = (row) => {
+    if (row.type === "holiday") {
+      if (!isIsoDate(row.date) || !Number.isInteger(Number(row.minutes)) || Number(row.minutes) <= 0 || Number(row.minutes) > 1440) return "Correct holiday date or hours";
+      if (paidKeys.has(`holiday|${row.date}|${employerId}`)) return "Holiday already saved";
+      return null;
+    }
     if (!isIsoDate(row.date) || !/^\d{2}:\d{2}$/.test(row.startTime) ||
         !/^\d{2}:\d{2}$/.test(row.endTime) ||
         row.startTime === row.endTime) return "Correct this date or time";
@@ -54,9 +61,11 @@ export default function AdpTimecardImport({
     setBusy(true);
     try {
       const parsed = await readAdpScreenshots(files, Number(year));
-      setRows(parsed.shifts.map((shift, index) => ({
-        ...shift, id: index + 1, selected: !savedKeys.has(shiftTimeKey(shift)) &&
-          !savedDates.has(shift.date),
+      setRows([...parsed.shifts, ...(parsed.paidTime ?? [])].map((entry, index) => ({
+        ...entry, id: index + 1,
+        selected: entry.type === "holiday"
+          ? !paidKeys.has(`holiday|${entry.date}|${employerId}`)
+          : !savedKeys.has(shiftTimeKey(entry)) && !savedDates.has(entry.date),
       })));
       setWarnings(parsed.warnings);
       setFileCount(files.length);
@@ -79,10 +88,10 @@ export default function AdpTimecardImport({
   }
 
   const selected = rows?.filter((row) => row.selected && !statusOf(row)) ?? [];
-  const duplicateSelection = selected.some((row, index) =>
-    selected.findIndex((other) => shiftTimeKey(other) === shiftTimeKey(row)) !== index ||
-    selected.some((other) => other.id !== row.id && other.date === row.date),
-  );
+  const duplicateSelection = selected.some((row) =>
+    selected.some((other) => other.id !== row.id && other.date === row.date &&
+      other.type === row.type));
+
 
   function confirmImport() {
     if (!selected.length || duplicateSelection) return;
@@ -93,7 +102,9 @@ export default function AdpTimecardImport({
     }
     setError("");
     const outcome = onImport(
-      selected.map(({ date, startTime, endTime }) => ({ date, startTime, endTime })),
+      selected.map((row) => row.type === "holiday"
+        ? { type: "holiday", date: row.date, minutes: Number(row.minutes) }
+        : { date: row.date, startTime: row.startTime, endTime: row.endTime }),
       employerId,
       rateCents,
     );
@@ -148,7 +159,7 @@ export default function AdpTimecardImport({
       {rows ? (
         <div className="wagez-shift-card flex flex-col gap-3">
           <p className="font-extrabold">
-            {rows.length} worked shift(s) detected in {fileCount} screenshot(s).
+            {rows.length} worked or paid holiday entries detected in {fileCount} screenshot(s).
             Nothing has been saved yet.
           </p>
           {warnings.length ? (
@@ -184,12 +195,12 @@ export default function AdpTimecardImport({
               <span aria-hidden="true">/hour</span>
             </div>
             <p className="text-xs font-semibold">
-              Screenshot does not include pay rate. All selected shifts receive
-              this rate; import different pay-rate profiles separately.
+              Screenshot does not include pay rate. All selected entries, including
+              holiday hours, use this rate. Import different rate profiles separately.
             </p>
           </div>
           <fieldset className="flex flex-col gap-3">
-            <legend className="wagez-field-label">Review and correct extracted shifts</legend>
+            <legend className="wagez-field-label">Review and correct worked shifts and paid holidays</legend>
             {rows.map((row) => {
               const status = statusOf(row);
               return (
@@ -197,7 +208,7 @@ export default function AdpTimecardImport({
                   <label className="flex items-center gap-2 font-bold">
                     <input type="checkbox" checked={row.selected} disabled={!!status}
                       onChange={(event) => changeRow(row.id, { selected: event.target.checked })} />
-                    Include worked shift {row.id}
+                    Include {row.type === "holiday" ? "HOLIDAY" : "worked shift"} {row.id}
                   </label>
                   <label className="text-sm font-semibold">
                     Date
@@ -206,24 +217,38 @@ export default function AdpTimecardImport({
                       value={row.date}
                       onChange={(event) => changeRow(row.id, { date: event.target.value })} />
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  {row.type === "holiday" ? (
                     <label className="text-sm font-semibold">
-                      Clock in
-                      <input className="wagez-field w-full" type="time"
-                        aria-label={`Clock in for shift ${row.id}`}
-                        value={row.startTime}
-                        onChange={(event) => changeRow(row.id, { startTime: event.target.value })} />
+                      Paid HOLIDAY hours (not hours worked)
+                      <input className="wagez-field w-full" type="number"
+                        inputMode="decimal" min="0.01" max="24" step="0.01"
+                        aria-label={`Holiday hours for entry ${row.id}`}
+                        value={row.minutes / 60}
+                        onChange={(event) => changeRow(row.id, {
+                          minutes: Math.round(Number(event.target.value) * 60),
+                        })} />
                     </label>
-                    <label className="text-sm font-semibold">
-                      Clock out
-                      <input className="wagez-field w-full" type="time"
-                        aria-label={`Clock out for shift ${row.id}`}
-                        value={row.endTime}
-                        onChange={(event) => changeRow(row.id, { endTime: event.target.value })} />
-                    </label>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="text-sm font-semibold">
+                        Clock in
+                        <input className="wagez-field w-full" type="time"
+                          aria-label={`Clock in for shift ${row.id}`}
+                          value={row.startTime}
+                          onChange={(event) => changeRow(row.id, { startTime: event.target.value })} />
+                      </label>
+                      <label className="text-sm font-semibold">
+                        Clock out
+                        <input className="wagez-field w-full" type="time"
+                          aria-label={`Clock out for shift ${row.id}`}
+                          value={row.endTime}
+                          onChange={(event) => changeRow(row.id, { endTime: event.target.value })} />
+                      </label>
+                    </div>
+                  )}
                   <p className="text-sm font-semibold">
                     {status ? `Not importable: ${status}` :
+                      row.type === "holiday" ? `HOLIDAY: ${duration(Number(row.minutes))} paid (not worked)` :
                       `Punch span: ${duration(elapsedMinutes(row.startTime, row.endTime))}`}
                   </p>
                 </div>
@@ -232,20 +257,20 @@ export default function AdpTimecardImport({
           </fieldset>
           {duplicateSelection ? (
             <p role="alert" className="wagez-alert">
-              Two selected shifts share a date. Import them separately or
-              correct the extracted dates before continuing.
+              Duplicate entries of the same type share a date. Correct the dates or
+              import them separately. A worked shift and HOLIDAY can share a date.
             </p>
           ) : null}
           <p className="text-xs font-semibold">
-            Holiday/PTO entries are excluded, not treated as worked shifts.
-            Breaks and adjustments cannot be inferred reliably from a screenshot;
+            HOLIDAY is imported as paid non-worked time, without fake clock punches.
+            Other leave types require separate support. Breaks and adjustments cannot be inferred reliably from a screenshot;
             imported shifts default to no break. Check totals against ADP.
             Existing Wagez shifts are never overwritten.
           </p>
           <div className="flex flex-wrap gap-2">
             <button className="wagez-do-math" type="button"
               disabled={!selected.length || duplicateSelection} onClick={confirmImport}>
-              Import {selected.length} shift(s)
+              Import {selected.length} entry(s)
             </button>
             <button className="wagez-quiet-button" type="button"
               onClick={() => { setRows(null); setWarnings([]); setError(""); }}>

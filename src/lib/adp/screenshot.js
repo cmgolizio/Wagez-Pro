@@ -31,7 +31,7 @@ function to24(hourText, minuteText, ampm) {
 
 export function parseAdpScreenshotText(text, year) {
   if (!Number.isInteger(year) || year < 2000 || year > 2099) {
-    return { shifts: [], warnings: ["Choose a valid screenshot year."] };
+    return { shifts: [], paidTime: [], warnings: ["Choose a valid screenshot year."] };
   }
   const source = String(text ?? "")
     .replace(/\r/g, "\n")
@@ -39,10 +39,11 @@ export function parseAdpScreenshotText(text, year) {
     .replace(/\u00a0/g, " ");
   const headers = [...source.matchAll(HEADER)];
   const shifts = [];
+  const paidTime = [];
   const warnings = [];
   const seen = new Set();
   if (!headers.length) {
-    return { shifts: [], warnings: ["No recognizable day cards found. Try an uncropped ADP Timecard screenshot."] };
+    return { shifts: [], paidTime: [], warnings: ["No recognizable day cards found. Try an uncropped ADP Timecard screenshot."] };
   }
 
   for (let i = 0; i < headers.length; i++) {
@@ -61,7 +62,21 @@ export function parseAdpScreenshotText(text, year) {
     }
 
     if (NON_WORKED.test(body) && !/\bWorked\b/i.test(body)) {
-      warnings.push(`${date}: non-worked paid time (holiday/PTO/etc.) is not imported as a shift.`);
+      if (/\bHOLIDAY\b/i.test(body)) {
+        const holidayLine = body.slice(body.search(/\bHOLIDAY\b/i));
+        // Prefer the explicitly labeled holiday hours on that line over the
+        // day total. 08:00 am is a display time, not a punch.
+        const matched = holidayLine.match(/(\d{1,2}(?:[.,]\d{1,2})?)\s*Hours\b/i);
+        const hours = matched ? Number(matched[1].replace(",", ".")) : NaN;
+        const minutes = Math.round(hours * 60);
+        if (Number.isFinite(hours) && minutes > 0 && minutes <= 1440) {
+          paidTime.push({ type: "holiday", date, minutes });
+        } else {
+          warnings.push(`${date}: HOLIDAY entry has no reliable paid hours. Review manually.`);
+        }
+      } else {
+        warnings.push(`${date}: paid non-worked time could not be imported (only HOLIDAY is supported).`);
+      }
       continue;
     }
     // The screenshot shows empty days with 0 Hours; those are not shifts.
@@ -100,7 +115,7 @@ export function parseAdpScreenshotText(text, year) {
     }
   }
   shifts.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
-  return { shifts, warnings };
+  return { shifts, paidTime, warnings };
 }
 
 /**
@@ -143,13 +158,19 @@ export async function readAdpScreenshots(files, year) {
   const Tesseract = await ocrRuntime();
   const worker = await Tesseract.createWorker("eng");
   const shifts = [];
+  const paidTime = [];
   const warnings = [];
   const seen = new Set();
+  const seenPaid = new Set();
   try {
     for (const file of files) {
       const result = await worker.recognize(file);
       const parsed = parseAdpScreenshotText(result.data.text, year);
       warnings.push(...parsed.warnings.map((warning) => `${file.name}: ${warning}`));
+      for (const entry of parsed.paidTime) {
+        const key = `${entry.type}|${entry.date}`;
+        if (!seenPaid.has(key)) { seenPaid.add(key); paidTime.push(entry); }
+      }
       for (const shift of parsed.shifts) {
         const key = shiftTimeKey(shift);
         if (!seen.has(key)) { seen.add(key); shifts.push(shift); }
@@ -158,11 +179,11 @@ export async function readAdpScreenshots(files, year) {
   } finally {
     await worker.terminate();
   }
-  if (shifts.length === 0) {
+  if (shifts.length === 0 && paidTime.length === 0) {
     throw new Error(
-      "No complete Worked punches were found. Check the screenshot year and image quality. Holiday/PTO entries are not shifts.",
+      "No complete Worked punches or HOLIDAY hours were found. Check the screenshot year and image quality.",
     );
   }
   shifts.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
-  return { shifts, warnings };
+  return { shifts, paidTime, warnings };
 }

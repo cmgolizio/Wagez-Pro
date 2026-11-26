@@ -8,7 +8,10 @@ import {
   startOfWeek,
   todayIsoDate,
 } from "@/lib/dates/isoDate";
-import { formatWeekRange } from "@/lib/formatters/date";
+import { formatWeekRange, formatShiftDay } from "@/lib/formatters/date";
+import { formatCents } from "@/lib/formatters/currency";
+import { calculatePayCents } from "@/lib/calculations/wages";
+import { withPaidTime } from "@/lib/shifts/paidTime";
 import { companyGroups, matchesEmployerFilter } from "@/lib/employers/company";
 import { formatWeekSummary } from "@/lib/share/weekSummary";
 import {
@@ -47,6 +50,7 @@ const THE_WEEK = "week";
  */
 export default function WeekView({
   shifts,
+  paidTime = [],
   employers = [],
   weekStartsOn,
   overtime,
@@ -55,6 +59,7 @@ export default function WeekView({
   onAdd,
   onUpdate,
   onDelete,
+  onDeletePaidTime,
   onSetOvertime,
 }) {
   const [chosenWeek, setChosenWeek] = useState(null);
@@ -159,9 +164,15 @@ export default function WeekView({
   const allWeekShifts = allocateShifts(shiftsForWeek(shifts, weekStart), overtime);
   const weekShifts = allWeekShifts.filter(({ shift }) =>
     matchesEmployerFilter(shift, employerFilter, employers));
-  const totals = summarizeAllocated(weekShifts);
+  const weekPaid = paidTime.filter((entry) => entry.date >= weekStart &&
+    entry.date <= addDays(weekStart, 6) &&
+    matchesEmployerFilter(entry, employerFilter, employers));
+  const totals = withPaidTime(summarizeAllocated(weekShifts), weekPaid);
   // Somewhere to go when this week is empty but the user's work is not.
-  const availableWeeks = groupShiftsByWeek(shifts, weekStartsOn);
+  const availableWeeks = groupShiftsByWeek([
+    ...shifts,
+    ...paidTime.map((entry) => ({ ...entry, startTime: "00:00" })),
+  ], weekStartsOn);
   const [latestWeek] = availableWeeks;
   const elsewhere =
     weekShifts.length === 0 && latestWeek !== undefined ? latestWeek : null;
@@ -262,7 +273,7 @@ export default function WeekView({
           <ShareWeek summary={formatWeekSummary(weekStart, totals, overtime)} />
         </div>
 
-        {weekShifts.length === 0 ? (
+        {weekShifts.length === 0 && weekPaid.length === 0 ? (
           <div className='wagez-week-empty'>
             <p>
               Nothing saved this week yet. Do the math on a shift, give it a
@@ -299,6 +310,29 @@ export default function WeekView({
           </ul>
         )}
 
+        {weekPaid.length ? (
+          <div className="flex flex-col gap-2">
+            <h3 className="font-extrabold">Paid holiday</h3>
+            {weekPaid.map((entry) => (
+              <div key={entry.id} className="wagez-shift-card flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-extrabold">HOLIDAY · {formatShiftDay(entry.date)}</p>
+                  <p className="text-sm font-semibold">
+                    {(entry.minutes / 60).toFixed(2)} paid hours · not worked
+                    {entry.hourlyRateCents === null
+                      ? " · rate missing"
+                      : ` · ${formatCents(calculatePayCents(entry.minutes, entry.hourlyRateCents))}`}
+                  </p>
+                </div>
+                <button type="button" className="wagez-quiet-button wagez-danger"
+                  aria-label={`Delete holiday on ${entry.date}`}
+                  onClick={() => {
+                    if (window.confirm(`Delete paid HOLIDAY on ${entry.date}?`)) onDeletePaidTime?.(entry.id);
+                  }}>Delete</button>
+              </div>
+            ))}
+          </div>
+        ) : null}
         <OvertimeSettings overtime={overtime} onChange={onSetOvertime} />
       </div>
     </section>

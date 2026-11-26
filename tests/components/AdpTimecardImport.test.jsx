@@ -13,7 +13,8 @@ vi.mock("@/lib/adp/screenshot", () => ({
       { date: "2026-11-23", startTime: "09:38", endTime: "17:05" },
       { date: "2026-11-24", startTime: "10:16", endTime: "17:10" },
     ],
-    warnings: ["timecard.png: 2026-11-26: holiday is not a worked shift."],
+    paidTime: [{ type: "holiday", date: "2026-11-26", minutes: 480 }],
+    warnings: [],
   })),
 }));
 
@@ -27,7 +28,7 @@ async function selectScreenshot({ navigate = true } = {}) {
     },
   });
   await waitFor(() =>
-    expect(screen.getByText(/2 worked shift\(s\) detected/)).not.toBeNull(),
+    expect(screen.getByText(/3 worked or paid holiday entries detected/)).not.toBeNull(),
   );
 }
 
@@ -36,20 +37,23 @@ describe("ADP screenshot import UI", () => {
     render(<WagezApp />);
     await selectScreenshot();
     expect(localStorage.getItem(STORAGE_KEY)?.includes("2026-11-23") ?? false).toBe(false);
-    expect(screen.getByText(/holiday is not a worked shift/i)).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Import 2 shift(s)" }));
+    expect(screen.getByLabelText("Holiday hours for entry 3").value).toBe("8");
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
     expect(data.shifts).toHaveLength(2);
+    expect(data.paidTime).toHaveLength(1);
+    expect(data.paidTime[0].minutes).toBe(480);
     expect(data.shifts[0].hourlyRateCents).toBeNull();
   });
 
   it("avoids importing duplicates when screenshot is uploaded again", async () => {
     render(<WagezApp />);
     await selectScreenshot();
-    fireEvent.click(screen.getByRole("button", { name: "Import 2 shift(s)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
     await selectScreenshot();
     expect(screen.getAllByText(/Not importable: Already saved/)).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "Import 0 shift(s)" }).disabled).toBe(true);
+    expect(screen.getByText(/Not importable: Holiday already saved/)).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Import 0 entry(s)" }).disabled).toBe(true);
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).shifts).toHaveLength(2);
   });
 
@@ -59,7 +63,7 @@ describe("ADP screenshot import UI", () => {
     fireEvent.change(screen.getByLabelText("Clock in for shift 1"), {
       target: { value: "09:30" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Import 2 shift(s)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
     expect(data.shifts.find((shift) => shift.date === "2026-11-23").startTime).toBe("09:30");
   });
@@ -68,7 +72,8 @@ describe("ADP screenshot import UI", () => {
     render(<WagezApp />);
     await selectScreenshot();
     fireEvent.click(screen.getByRole("checkbox", { name: "Include worked shift 2" }));
-    fireEvent.click(screen.getByRole("button", { name: "Import 1 shift(s)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import 2 entry(s)" }));
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).shifts).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).paidTime).toHaveLength(1);
   });
 });

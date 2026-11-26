@@ -132,7 +132,7 @@ export default function WagezApp() {
           <EmployerSettings employers={employers} shifts={shifts}
             defaultEmployerId={settings.defaultEmployerId}
             onSave={saveEmployer} onDelete={deleteEmployer} onSetDefault={setDefaultEmployer} />
-          <AdpTimecardImport employers={employers} shifts={shifts}
+          <AdpTimecardImport employers={employers} shifts={shifts} paidTime={paidTime}
             defaultEmployerId={settings.defaultEmployerId} onImport={handleAdpImport} />
           <DataBackup data={{ shifts, employers, settings }} onRestore={handleRestore} />
         </section>

@@ -83,7 +83,8 @@ export default function useWagezData() {
 
   const deleteEmployer = useCallback((id) => {
     const current = getWagezSnapshot();
-    if (current.shifts.some((shift) => shift.employerId === id)) return false;
+    if (current.shifts.some((shift) => shift.employerId === id) ||
+        (current.paidTime ?? []).some((entry) => entry.employerId === id)) return false;
     updateWagezData((data) => ({
       ...data,
       employers: data.employers.filter((e) => e.id !== id),

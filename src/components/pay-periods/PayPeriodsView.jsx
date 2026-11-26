@@ -28,6 +28,9 @@ function PeriodWeek({ number, week }) {
         </span>
         <span className="font-extrabold">{amount(week.totals.payCents)}</span>
       </div>
+      {week.totals.holidayCount > 0 ? (
+        <p className="text-sm font-semibold">Paid HOLIDAY: {(week.totals.holidayMinutes / 60).toFixed(2)}h · {week.totals.holidayPayCents === null ? "Rate missing" : formatCents(week.totals.holidayPayCents)}</p>
+      ) : null}
       {week.totals.tipCents > 0 ? (
         <p className="text-sm font-semibold">Includes {formatCents(week.totals.tipCents)} tips</p>
       ) : null}
@@ -42,6 +45,7 @@ function PeriodWeek({ number, week }) {
  */
 export default function PayPeriodsView({
   shifts = [],
+  paidTime = [],
   employers = [],
   settings,
   ready,
@@ -96,6 +100,7 @@ export default function PayPeriodsView({
         weekStartsOn: settings.weekStartsOn,
         employerId: employerFilter,
         employers,
+        paidTime,
       })
     : null;
 
@@ -261,6 +266,9 @@ export default function PayPeriodsView({
                   {details.totals.shiftCount} saved shifts ·{" "}
                   {formatDurationCompact(details.totals.paidMinutes)}
                 </p>
+                {details.totals.holidayCount > 0 ? (
+                  <p className="wagez-week-split">Paid HOLIDAY: {(details.totals.holidayMinutes / 60).toFixed(2)}h · {details.totals.holidayPayCents === null ? "Rate missing" : formatCents(details.totals.holidayPayCents)}</p>
+                ) : null}
                 {details.totals.tipCents > 0 ? (
                   <p className="wagez-week-split">
                     Includes {formatCents(details.totals.tipCents)} tips
@@ -269,6 +277,9 @@ export default function PayPeriodsView({
               </div>
             </div>
 
+            {details.totals.holidayUnknownRates > 0 ? (
+              <p role="status" className="wagez-alert text-sm">{details.totals.holidayUnknownRates} holiday entry(s) have no hourly rate, so estimated pay is incomplete.</p>
+            ) : null}
             {details.missingRates > 0 ? (
               <p role="status" className="wagez-alert text-sm">
                 {details.missingRates} shift(s) have no hourly rate.
