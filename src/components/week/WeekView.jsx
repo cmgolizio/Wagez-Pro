@@ -22,6 +22,7 @@ import {
 } from "@/lib/shifts/week";
 
 import OvertimeSettings from "@/components/settings/OvertimeSettings";
+import AdpTimecardImport from "@/components/settings/AdpTimecardImport";
 import { focusIfLost } from "@/components/ui/focus";
 
 import SavedShiftCard from "./SavedShiftCard";
@@ -61,8 +62,11 @@ export default function WeekView({
   onDelete,
   onDeletePaidTime,
   onSetOvertime,
+  onImportAdp,
+  defaultEmployerId = null,
 }) {
   const [chosenWeek, setChosenWeek] = useState(null);
+  const [showScreenshotImporter, setShowScreenshotImporter] = useState(false);
   const [employerFilter, setEmployerFilter] = useState("all");
   const [open, setOpen] = useState(null);
   // The shift the keyboard should end up on once the week has redrawn itself,
@@ -79,6 +83,7 @@ export default function WeekView({
     setChosenWeek(importTarget.weekStart);
     setEmployerFilter("all");
     setOpen(null);
+    setShowScreenshotImporter(false);
   }, [importTarget]);
 
   /*
@@ -213,6 +218,28 @@ export default function WeekView({
       </nav>
 
       <div className='wagez-week-body'>
+        <div className="flex flex-col gap-2 shrink-0">
+          <button
+            type="button"
+            className="wagez-quiet-button wagez-shift-card"
+            aria-expanded={showScreenshotImporter}
+            aria-controls="week-adp-screenshot-import"
+            onClick={() => setShowScreenshotImporter((open) => !open)}
+          >
+            {showScreenshotImporter ? "Close screenshot importer" : "Upload ADP screenshot"}
+          </button>
+          {showScreenshotImporter ? (
+            <div id="week-adp-screenshot-import">
+              <AdpTimecardImport
+                employers={employers}
+                shifts={shifts}
+                paidTime={paidTime}
+                defaultEmployerId={defaultEmployerId}
+                onImport={onImportAdp}
+              />
+            </div>
+          ) : null}
+        </div>
         {importTarget && weekStart === importTarget.weekStart ? (
           <p className="text-sm font-bold" role="status">
             {importTarget.source === "adp" ? "Imported" : "Restored"} {importTarget.count} shifts. Showing the latest imported week.

@@ -33,6 +33,23 @@ async function selectScreenshot({ navigate = true } = {}) {
 }
 
 describe("ADP screenshot import UI", () => {
+  it("offers screenshot upload on Week as well as Settings using the same reviewed importer", async () => {
+    render(<WagezApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Week" }));
+    const toggle = screen.getByRole("button", { name: "Upload ADP screenshot" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("heading", { name: "Import ADP screenshots" })).not.toBeNull();
+    await selectScreenshot({ navigate: false });
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    expect(saved.shifts).toHaveLength(2);
+    expect(saved.paidTime).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Upload ADP screenshot" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(screen.getByRole("button", { name: "Choose timecard screenshots" })).not.toBeNull();
+  });
+
   it("opens Settings without a runtime error and preserves backup controls", () => {
     render(<WagezApp />);
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));

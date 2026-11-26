@@ -125,6 +125,8 @@ export default function WagezApp() {
           onDelete={removeShift}
           onDeletePaidTime={removePaidTime}
           onSetOvertime={setOvertime}
+          onImportAdp={handleAdpImport}
+          defaultEmployerId={settings.defaultEmployerId}
         />
       </div>
       {view === PAY_PERIODS ? (
