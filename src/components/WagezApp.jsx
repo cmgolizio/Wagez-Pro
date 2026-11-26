@@ -36,6 +36,7 @@ export default function WagezApp() {
     ready,
     saveFailed,
     shifts,
+    paidTime,
     settings,
     employers,
     saveEmployer,
@@ -46,6 +47,7 @@ export default function WagezApp() {
     addShift,
     updateShift,
     removeShift,
+    removePaidTime,
     setDefaultRateCents,
     setOvertime,
     setPayPeriod,
@@ -112,6 +114,7 @@ export default function WagezApp() {
       <div className={view === WEEK ? "contents" : "hidden"}>
         <WeekView
           shifts={shifts}
+          paidTime={paidTime}
           employers={employers}
           weekStartsOn={settings.weekStartsOn}
           overtime={settings.overtime}
@@ -120,11 +123,12 @@ export default function WagezApp() {
           onAdd={addShift}
           onUpdate={updateShift}
           onDelete={removeShift}
+          onDeletePaidTime={removePaidTime}
           onSetOvertime={setOvertime}
         />
       </div>
       {view === PAY_PERIODS ? (
-        <PayPeriodsView shifts={shifts} employers={employers}
+        <PayPeriodsView shifts={shifts} paidTime={paidTime} employers={employers}
           settings={settings} ready={ready} onSetPayPeriod={setPayPeriod} />
       ) : null}
       {view === SETTINGS ? (
@@ -134,7 +138,7 @@ export default function WagezApp() {
             onSave={saveEmployer} onDelete={deleteEmployer} onSetDefault={setDefaultEmployer} />
           <AdpTimecardImport employers={employers} shifts={shifts} paidTime={paidTime}
             defaultEmployerId={settings.defaultEmployerId} onImport={handleAdpImport} />
-          <DataBackup data={{ shifts, employers, settings }} onRestore={handleRestore} />
+          <DataBackup data={{ shifts, paidTime, employers, settings }} onRestore={handleRestore} />
         </section>
       ) : null}
     </main>
