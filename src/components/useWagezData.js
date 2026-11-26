@@ -3,6 +3,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { loadWagezData } from "@/lib/storage/wagezStorage";
 import { createSavedShift } from "@/lib/shifts/savedShift";
+import { createPaidTime, paidTimeKey } from "@/lib/shifts/paidTime";
 import { shiftTimeKey } from "@/lib/adp/timecard";
 
 import {
@@ -113,29 +114,51 @@ export default function useWagezData() {
    */
   const importAdpShifts = useCallback((entries, employerId, rateCents) => {
     if (!Array.isArray(entries) || entries.length === 0) {
-      return { ok: false, added: 0, message: "Choose at least one shift." };
+      return { ok: false, added: 0, message: "Choose at least one entry." };
     }
-    if (employerId && !getWagezSnapshot().employers.some((e) => e.id === employerId)) {
+    const current = getWagezSnapshot();
+    if (employerId && !current.employers.some((e) => e.id === employerId)) {
       return { ok: false, added: 0, message: "Choose an existing employer." };
     }
     if (rateCents !== null && (!Number.isSafeInteger(rateCents) || rateCents < 0)) {
       return { ok: false, added: 0, message: "The hourly rate is invalid." };
     }
 
-    const current = getWagezSnapshot();
     const existingKeys = new Set(current.shifts.map(shiftTimeKey));
     const existingDates = new Set(current.shifts.map((shift) => shift.date));
-    const submitted = new Set();
+    const existingPaidKeys = new Set((current.paidTime ?? []).map(paidTimeKey));
+    const submittedKeys = new Set();
     const additions = [];
+    const holidays = [];
     let skipped = 0;
 
     for (const entry of entries) {
+      if (entry.type === "holiday") {
+        const candidate = createPaidTime({
+          type: "holiday",
+          date: entry.date,
+          minutes: entry.minutes,
+          hourlyRateCents: rateCents,
+          employerId,
+        });
+        if (!candidate) {
+          return { ok: false, added: 0, message: "Invalid paid holiday hours." };
+        }
+        const key = paidTimeKey(candidate);
+        if (existingPaidKeys.has(key) || submittedKeys.has(key)) {
+          skipped += 1;
+          continue;
+        }
+        submittedKeys.add(key);
+        holidays.push(candidate);
+        continue;
+      }
       const key = shiftTimeKey(entry);
-      if (submitted.has(key) || existingKeys.has(key) || existingDates.has(entry.date)) {
+      if (submittedKeys.has(key) || existingKeys.has(key) || existingDates.has(entry.date)) {
         skipped += 1;
         continue;
       }
-      submitted.add(key);
+      submittedKeys.add(key);
       const result = createSavedShift({
         date: entry.date,
         startTime: entry.startTime,
@@ -150,26 +173,29 @@ export default function useWagezData() {
       additions.push(result.shift);
     }
 
-    if (!additions.length) {
-      return { ok: true, added: 0, skipped, message: "All selected shifts are already saved or conflict with existing dates." };
+    const imported = [...additions, ...holidays];
+    if (!imported.length) {
+      return { ok: true, added: 0, skipped, message: "All entries already exist or conflict." };
     }
-
     if (!updateWagezData((data) => ({
       ...data,
       shifts: [...data.shifts, ...additions],
+      paidTime: [...(data.paidTime ?? []), ...holidays],
     }))) {
-      return { ok: false, added: 0, message: "The browser could not save these shifts. Your existing data is unchanged." };
+      return { ok: false, added: 0, message: "The browser could not save the entries." };
     }
-
-    const persisted = new Set(loadWagezData().shifts.map((shift) => shift.id));
-    if (!additions.every((shift) => persisted.has(shift.id))) {
-      return { ok: false, added: 0, message: "Import could not be verified in device storage. Check your saved shifts before retrying." };
+    const persisted = loadWagezData();
+    const shiftIds = new Set(persisted.shifts.map((shift) => shift.id));
+    const holidayIds = new Set(persisted.paidTime.map((entry) => entry.id));
+    if (!additions.every((shift) => shiftIds.has(shift.id)) ||
+        !holidays.every((entry) => holidayIds.has(entry.id))) {
+      return { ok: false, added: 0, message: "Import could not be verified in device storage." };
     }
-    const newestDate = additions.reduce(
-      (max, shift) => shift.date > max ? shift.date : max,
-      additions[0].date,
+    const newestDate = imported.reduce(
+      (latest, entry) => entry.date > latest ? entry.date : latest,
+      imported[0].date,
     );
-    return { ok: true, added: additions.length, skipped, newestDate };
+    return { ok: true, added: imported.length, skipped, newestDate };
   }, []);
 
   const restoreData = useCallback((data) => {
@@ -179,7 +205,8 @@ export default function useWagezData() {
     // A confirmation must mean the shift records really survived the write.
     const saved = loadWagezData();
     if (saved.shifts.length !== data.shifts.length ||
-        saved.employers.length !== data.employers.length) return false;
+        saved.employers.length !== data.employers.length ||
+        saved.paidTime.length !== (data.paidTime?.length ?? 0)) return false;
 
     const byId = new Map(saved.shifts.map((shift) => [shift.id, shift]));
     return data.shifts.every((shift) => {
@@ -211,6 +238,12 @@ export default function useWagezData() {
     }));
   }, []);
 
+  /** Remove a paid holiday without changing worked shifts. */
+  const removePaidTime = useCallback((id) => updateWagezData((current) => ({
+    ...current,
+    paidTime: (current.paidTime ?? []).filter((entry) => entry.id !== id),
+  })), []);
+
   /** Take a shift out of the week for good. */
   const removeShift = useCallback((id) => {
     updateWagezData((current) => ({
@@ -223,11 +256,13 @@ export default function useWagezData() {
     ready: data.ready,
     saveFailed: data.saveFailed ?? false,
     shifts: data.shifts,
+    paidTime: data.paidTime ?? [],
     employers: data.employers,
     settings: data.settings,
     addShift,
     updateShift,
     removeShift,
+    removePaidTime,
     setDefaultRateCents,
     setOvertime,
     setPayPeriod,

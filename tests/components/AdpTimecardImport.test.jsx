@@ -33,6 +33,48 @@ async function selectScreenshot({ navigate = true } = {}) {
 }
 
 describe("ADP screenshot import UI", () => {
+  it("offers screenshot upload on Week as well as Settings using the same reviewed importer", async () => {
+    render(<WagezApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Week" }));
+    const toggle = screen.getByRole("button", { name: "Upload ADP screenshot" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("heading", { name: "Import ADP screenshots" })).not.toBeNull();
+    await selectScreenshot({ navigate: false });
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    expect(saved.shifts).toHaveLength(2);
+    expect(saved.paidTime).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Upload ADP screenshot" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(screen.getByRole("button", { name: "Choose timecard screenshots" })).not.toBeNull();
+  });
+
+  it("opens Settings without a runtime error and preserves backup controls", () => {
+    render(<WagezApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(screen.getByRole("heading", { name: "Employers" })).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Import ADP screenshots" })).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Backup & restore" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Export all data (.json)" })).not.toBeNull();
+  });
+
+  it("includes imported holiday pay in the Week and Pay periods views", async () => {
+    render(<WagezApp />);
+    await selectScreenshot();
+    fireEvent.change(screen.getByLabelText("Hourly rate for these shifts (optional)"), {
+      target: { value: "20.00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    expect(saved.paidTime).toHaveLength(1);
+    expect(saved.paidTime[0].hourlyRateCents).toBe(2000);
+    expect(screen.getByText(/Paid holiday:/i)).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Pay periods" }));
+    // No pay-period schedule is configured in this fixture, so check its setup screen.
+    expect(screen.getByRole("heading", { name: "Set up your pay periods" })).not.toBeNull();
+  });
+
   it("does not change saved shifts until confirmation", async () => {
     render(<WagezApp />);
     await selectScreenshot();
