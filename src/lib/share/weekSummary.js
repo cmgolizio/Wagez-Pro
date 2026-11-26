@@ -46,7 +46,7 @@ export function formatWeekSummary(
 ) {
   const { shiftCount, paidMinutes, payCents, regularMinutes, overtimeMinutes } =
     totals;
-  if (shiftCount === 0) return null;
+  if (shiftCount === 0 && !totals.holidayCount) return null;
 
   const range = formatWeekRange(weekStart);
   if (range === null) return null;

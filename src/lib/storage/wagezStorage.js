@@ -16,6 +16,7 @@ import {
 } from "@/lib/calculations/overtime";
 import { SUNDAY, MONDAY } from "@/lib/dates/isoDate";
 import { normalizeSavedShift } from "@/lib/shifts/savedShift";
+import { normalizePaidTime } from "@/lib/shifts/paidTime";
 import { normalizePayPeriod } from "@/lib/pay-periods/biweekly";
 
 export const STORAGE_KEY = "wagez:v2";
@@ -45,6 +46,7 @@ export function defaultWagezData() {
     settings: { ...DEFAULT_SETTINGS },
     employers: [],
     shifts: [],
+    paidTime: [],
   };
 }
 
@@ -129,12 +131,21 @@ export function validateStoredData(value) {
     shifts.push(shift);
   }
 
+  const paidTime = [];
+  const seenPaid = new Set();
+  for (const item of Array.isArray(value.paidTime) ? value.paidTime : []) {
+    const entry = normalizePaidTime(item);
+    if (!entry || seenPaid.has(entry.id)) continue;
+    seenPaid.add(entry.id);
+    paidTime.push(entry);
+  }
   const employers = normalizeEmployers(value.employers);
   return {
     version: STORAGE_VERSION,
     settings: normalizeSettings(value.settings, employers),
     employers,
     shifts,
+    paidTime,
   };
 }
 

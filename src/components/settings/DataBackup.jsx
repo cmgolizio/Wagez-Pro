@@ -14,6 +14,7 @@ export default function DataBackup({ data, onRestore }) {
       settings: data.settings,
       employers: data.employers,
       shifts: data.shifts,
+      paidTime: data.paidTime ?? [],
     }, null, 2);
     const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     const link = document.createElement("a");
@@ -34,12 +35,14 @@ export default function DataBackup({ data, onRestore }) {
       if (!parsed || parsed.version !== STORAGE_VERSION ||
         !Array.isArray(parsed.shifts) ||
         (parsed.employers !== undefined && !Array.isArray(parsed.employers)) ||
+        (parsed.paidTime !== undefined && !Array.isArray(parsed.paidTime)) ||
         !parsed.settings || typeof parsed.settings !== "object") {
         throw new Error("This is not a supported Wagez backup.");
       }
       const normalized = validateStoredData(parsed);
       if (normalized.shifts.length !== parsed.shifts.length ||
-          normalized.employers.length !== (parsed.employers?.length ?? 0)) {
+          normalized.employers.length !== (parsed.employers?.length ?? 0) ||
+          normalized.paidTime.length !== (parsed.paidTime?.length ?? 0)) {
         throw new Error("Backup contains invalid or duplicate shifts/employers.");
       }
       setPending(normalized);
@@ -61,7 +64,7 @@ export default function DataBackup({ data, onRestore }) {
       </div>
       {error ? <p className="wagez-alert" role="alert">{error}</p> : null}
       {pending ? <div className="wagez-shift-card flex flex-col gap-2">
-        <p className="font-semibold">Backup read: {pending.shifts.length} shifts and {pending.employers.length} employers. Not imported yet.</p>
+        <p className="font-semibold">Backup read: {pending.shifts.length} shifts, {pending.paidTime.length} paid-time entries and {pending.employers.length} employers. Not imported yet.</p>
         <p className="font-semibold">Confirming replaces all current Wagez data. Export your current data first if you need to keep it.</p>
         <div className="flex gap-2">
           <button type="button" className="wagez-quiet-button" onClick={() => {

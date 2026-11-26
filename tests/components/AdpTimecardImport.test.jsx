@@ -7,55 +7,73 @@ import WagezApp from "@/components/WagezApp";
 import { STORAGE_KEY } from "@/lib/storage/wagezStorage";
 import { cleanupWagez } from "../helpers/wagez";
 
-vi.mock("@/lib/adp/timecard", async (importOriginal) => ({
-  ...(await importOriginal()),
-  readAdpPdf: vi.fn(async () => ({
-    shifts: [{
-      date: "2026-11-06",
-      startTime: "09:18",
-      endTime: "16:57",
-    }],
+vi.mock("@/lib/adp/screenshot", () => ({
+  readAdpScreenshots: vi.fn(async () => ({
+    shifts: [
+      { date: "2026-11-23", startTime: "09:38", endTime: "17:05" },
+      { date: "2026-11-24", startTime: "10:16", endTime: "17:10" },
+    ],
+    paidTime: [{ type: "holiday", date: "2026-11-26", minutes: 480 }],
     warnings: [],
-    reportedTotalHours: 7.65,
   })),
 }));
 
 afterEach(cleanupWagez);
 
-async function chooseSample() {
-  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
-  const file = new File(["sample"], "timecard.pdf", { type: "application/pdf" });
-  fireEvent.change(screen.getByLabelText("Choose ADP timecard PDF files"), {
-    target: { files: [file] },
+async function selectScreenshot({ navigate = true } = {}) {
+  if (navigate) fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  fireEvent.change(screen.getByLabelText("Choose ADP timecard screenshots"), {
+    target: {
+      files: [new File(["image"], "timecard.png", { type: "image/png" })],
+    },
   });
   await waitFor(() =>
-    expect(screen.getByText(/1 unique punch pair/)).not.toBeNull(),
+    expect(screen.getByText(/3 worked or paid holiday entries detected/)).not.toBeNull(),
   );
 }
 
-describe("ADP PDF import UI", () => {
-  it("does not write before confirmation and appends after approval", async () => {
+describe("ADP screenshot import UI", () => {
+  it("does not change saved shifts until confirmation", async () => {
     render(<WagezApp />);
-    await chooseSample();
-
-    expect(localStorage.getItem(STORAGE_KEY)?.includes("2026-11-06") ?? false).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: "Import 1 shift(s)" }));
-
-    expect(screen.getByText(/Imported 1 shifts/)).not.toBeNull();
-    expect(document.querySelectorAll(".wagez-week-list > li")).toHaveLength(1);
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    expect(saved.shifts).toHaveLength(1);
-    expect(saved.shifts[0].hourlyRateCents).toBeNull();
+    await selectScreenshot();
+    expect(localStorage.getItem(STORAGE_KEY)?.includes("2026-11-23") ?? false).toBe(false);
+    expect(screen.getByLabelText("Holiday hours for entry 3").value).toBe("8");
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    expect(data.shifts).toHaveLength(2);
+    expect(data.paidTime).toHaveLength(1);
+    expect(data.paidTime[0].minutes).toBe(480);
+    expect(data.shifts[0].hourlyRateCents).toBeNull();
   });
 
-  it("identifies repeated timecards as duplicates instead of adding shifts", async () => {
+  it("avoids importing duplicates when screenshot is uploaded again", async () => {
     render(<WagezApp />);
-    await chooseSample();
-    fireEvent.click(screen.getByRole("button", { name: "Import 1 shift(s)" }));
+    await selectScreenshot();
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
+    await selectScreenshot();
+    expect(screen.getAllByText(/Not importable: Already saved/)).toHaveLength(2);
+    expect(screen.getByText(/Not importable: Holiday already saved/)).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Import 0 entry(s)" }).disabled).toBe(true);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).shifts).toHaveLength(2);
+  });
 
-    await chooseSample();
-    expect(screen.getByText(/Skipped: Already saved/)).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Import 0 shift(s)" }).disabled).toBe(true);
+  it("allows correcting an OCR time before saving", async () => {
+    render(<WagezApp />);
+    await selectScreenshot();
+    fireEvent.change(screen.getByLabelText("Clock in for shift 1"), {
+      target: { value: "09:30" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    expect(data.shifts.find((shift) => shift.date === "2026-11-23").startTime).toBe("09:30");
+  });
+
+  it("lets the user exclude a shift", async () => {
+    render(<WagezApp />);
+    await selectScreenshot();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Include worked shift 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import 2 entry(s)" }));
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).shifts).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).paidTime).toHaveLength(1);
   });
 });
