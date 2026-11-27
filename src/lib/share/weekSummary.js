@@ -46,7 +46,7 @@ export function formatWeekSummary(
 ) {
   const { shiftCount, paidMinutes, payCents, regularMinutes, overtimeMinutes } =
     totals;
-  if (shiftCount === 0 && !totals.holidayCount) return null;
+  if (shiftCount === 0 && !totals.paidTimeCount) return null;
 
   const range = formatWeekRange(weekStart);
   if (range === null) return null;
@@ -65,6 +65,9 @@ export function formatWeekSummary(
     );
   }
 
+  for (const category of totals.categories ?? []) {
+    lines.push(`${formatDurationCompact(category.minutes)} ${category.type.replace(/-/g, " ")} credited; ${category.payCents === null ? "rate missing" : formatCents(category.payCents)}`);
+  }
   if (totals.tipCents > 0) lines.push(`${formatCents(totals.tipCents)} tips`);
   if (payCents !== null) lines.push(`${formatCents(payCents)} gross`);
 

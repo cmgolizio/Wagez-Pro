@@ -37,9 +37,9 @@ export default function AdpTimecardImport({
   const paidKeys = new Set(paidTime.map((entry) => `${entry.type}|${entry.date}|${entry.employerId ?? ""}`));
 
   const statusOf = (row) => {
-    if (row.type === "holiday") {
-      if (!isIsoDate(row.date) || !Number.isInteger(Number(row.minutes)) || Number(row.minutes) <= 0 || Number(row.minutes) > 1440) return "Correct holiday date or hours";
-      if (paidKeys.has(`holiday|${row.date}|${employerId}`)) return "Holiday already saved";
+    if (typeof row.type === "string") {
+      if (!isIsoDate(row.date) || !Number.isInteger(Number(row.minutes)) || Number(row.minutes) < 0 || Number(row.minutes) > 1440) return "Correct recorded date or hours";
+      if (paidKeys.has(`${row.type}|${row.date}|${employerId}`)) return `${row.type.toUpperCase()} already saved`;
       return null;
     }
     if (!isIsoDate(row.date) || !/^\d{2}:\d{2}$/.test(row.startTime) ||
@@ -63,8 +63,8 @@ export default function AdpTimecardImport({
       const parsed = await readAdpScreenshots(files, Number(year));
       setRows([...parsed.shifts, ...(parsed.paidTime ?? [])].map((entry, index) => ({
         ...entry, id: index + 1,
-        selected: entry.type === "holiday"
-          ? !paidKeys.has(`holiday|${entry.date}|${employerId}`)
+        selected: typeof entry.type === "string"
+          ? !paidKeys.has(`${entry.type}|${entry.date}|${employerId}`)
           : !savedKeys.has(shiftTimeKey(entry)) && !savedDates.has(entry.date),
       })));
       setWarnings(parsed.warnings);
@@ -102,8 +102,8 @@ export default function AdpTimecardImport({
     }
     setError("");
     const outcome = onImport(
-      selected.map((row) => row.type === "holiday"
-        ? { type: "holiday", date: row.date, minutes: Number(row.minutes) }
+      selected.map((row) => typeof row.type === "string"
+        ? { type: row.type, date: row.date, minutes: Number(row.minutes) }
         : { date: row.date, startTime: row.startTime, endTime: row.endTime }),
       employerId,
       rateCents,
@@ -196,11 +196,11 @@ export default function AdpTimecardImport({
             </div>
             <p className="text-xs font-semibold">
               Screenshot does not include pay rate. All selected entries, including
-              holiday hours, use this rate. Import different rate profiles separately.
+              all credited hours, use this rate. Import different rate profiles separately.
             </p>
           </div>
           <fieldset className="flex flex-col gap-3">
-            <legend className="wagez-field-label">Review and correct worked shifts and paid holidays</legend>
+            <legend className="wagez-field-label">Review and correct all recorded entries</legend>
             {rows.map((row) => {
               const status = statusOf(row);
               return (
@@ -208,7 +208,7 @@ export default function AdpTimecardImport({
                   <label className="flex items-center gap-2 font-bold">
                     <input type="checkbox" checked={row.selected} disabled={!!status}
                       onChange={(event) => changeRow(row.id, { selected: event.target.checked })} />
-                    Include {row.type === "holiday" ? "HOLIDAY" : "worked shift"} {row.id}
+                    Include {typeof row.type === "string" ? row.type.replace(/-/g, " ").toUpperCase() : "worked shift"} {row.id}
                   </label>
                   <label className="text-sm font-semibold">
                     Date
@@ -217,12 +217,12 @@ export default function AdpTimecardImport({
                       value={row.date}
                       onChange={(event) => changeRow(row.id, { date: event.target.value })} />
                   </label>
-                  {row.type === "holiday" ? (
+                  {typeof row.type === "string" ? (
                     <label className="text-sm font-semibold">
-                      Paid HOLIDAY hours (not hours worked)
+                      Credited {row.type.replace(/-/g, " ").toUpperCase()} hours
                       <input className="wagez-field w-full" type="number"
-                        inputMode="decimal" min="0.01" max="24" step="0.01"
-                        aria-label={`Holiday hours for entry ${row.id}`}
+                        inputMode="decimal" min="0" max="24" step="0.01"
+                        aria-label={`Credited hours for entry ${row.id}`}
                         value={row.minutes / 60}
                         onChange={(event) => changeRow(row.id, {
                           minutes: Math.round(Number(event.target.value) * 60),
@@ -248,7 +248,7 @@ export default function AdpTimecardImport({
                   )}
                   <p className="text-sm font-semibold">
                     {status ? `Not importable: ${status}` :
-                      row.type === "holiday" ? `HOLIDAY: ${duration(Number(row.minutes))} paid (not worked)` :
+                      typeof row.type === "string" ? `${row.type.replace(/-/g, " ").toUpperCase()}: ${duration(Number(row.minutes))} credited` :
                       `Punch span: ${duration(elapsedMinutes(row.startTime, row.endTime))}`}
                   </p>
                 </div>
@@ -262,8 +262,7 @@ export default function AdpTimecardImport({
             </p>
           ) : null}
           <p className="text-xs font-semibold">
-            HOLIDAY is imported as paid non-worked time, without fake clock punches.
-            Other leave types require separate support. Breaks and adjustments cannot be inferred reliably from a screenshot;
+            Every recorded ADP category is eligible. Entries without punches retain their credited hours and label. Breaks and adjustments cannot be inferred reliably from a screenshot;
             imported shifts default to no break. Check totals against ADP.
             Existing Wagez shifts are never overwritten.
           </p>

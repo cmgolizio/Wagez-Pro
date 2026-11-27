@@ -339,22 +339,22 @@ export default function WeekView({
 
         {weekPaid.length ? (
           <div className="flex flex-col gap-2">
-            <h3 className="font-extrabold">Paid holiday</h3>
+            <h3 className="font-extrabold">ADP credited entries</h3>
             {weekPaid.map((entry) => (
               <div key={entry.id} className="wagez-shift-card flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-extrabold">HOLIDAY · {formatShiftDay(entry.date)}</p>
+                  <p className="font-extrabold">{entry.type.toUpperCase()} · {formatShiftDay(entry.date)}</p>
                   <p className="text-sm font-semibold">
-                    {(entry.minutes / 60).toFixed(2)} paid hours · not worked
+                    {(entry.minutes / 60).toFixed(2)} credited hours
                     {entry.hourlyRateCents === null
                       ? " · rate missing"
                       : ` · ${formatCents(calculatePayCents(entry.minutes, entry.hourlyRateCents))}`}
                   </p>
                 </div>
                 <button type="button" className="wagez-quiet-button wagez-danger"
-                  aria-label={`Delete holiday on ${entry.date}`}
+                  aria-label={`Delete ${entry.type} on ${entry.date}`}
                   onClick={() => {
-                    if (window.confirm(`Delete paid HOLIDAY on ${entry.date}?`)) onDeletePaidTime?.(entry.id);
+                    if (window.confirm(`Delete ${entry.type.toUpperCase()} on ${entry.date}?`)) onDeletePaidTime?.(entry.id);
                   }}>Delete</button>
               </div>
             ))}

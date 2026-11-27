@@ -28,7 +28,7 @@ async function selectScreenshot({ navigate = true } = {}) {
     },
   });
   await waitFor(() =>
-    expect(screen.getByText(/3 worked or paid holiday entries detected/)).not.toBeNull(),
+    expect(screen.getByText(/3 worked or paid leave entries detected/)).not.toBeNull(),
   );
 }
 
@@ -79,7 +79,7 @@ describe("ADP screenshot import UI", () => {
     render(<WagezApp />);
     await selectScreenshot();
     expect(localStorage.getItem(STORAGE_KEY)?.includes("2026-11-23") ?? false).toBe(false);
-    expect(screen.getByLabelText("Holiday hours for entry 3").value).toBe("8");
+    expect(screen.getByLabelText("Credited hours for entry 3").value).toBe("8");
     fireEvent.click(screen.getByRole("button", { name: "Import 3 entry(s)" }));
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
     expect(data.shifts).toHaveLength(2);

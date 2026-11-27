@@ -28,9 +28,11 @@ function PeriodWeek({ number, week }) {
         </span>
         <span className="font-extrabold">{amount(week.totals.payCents)}</span>
       </div>
-      {week.totals.holidayCount > 0 ? (
-        <p className="text-sm font-semibold">Paid HOLIDAY: {(week.totals.holidayMinutes / 60).toFixed(2)}h · {week.totals.holidayPayCents === null ? "Rate missing" : formatCents(week.totals.holidayPayCents)}</p>
-      ) : null}
+      {(week.totals.categories ?? []).map((category) => (
+        <p key={category.type} className="text-sm font-semibold">
+          {category.type.replace(/-/g, " ").toUpperCase()}: {(category.minutes / 60).toFixed(2)} credited hours · {category.payCents === null ? "Rate missing" : formatCents(category.payCents)}
+        </p>
+      ))}
       {week.totals.tipCents > 0 ? (
         <p className="text-sm font-semibold">Includes {formatCents(week.totals.tipCents)} tips</p>
       ) : null}
@@ -266,9 +268,11 @@ export default function PayPeriodsView({
                   {details.totals.shiftCount} saved shifts ·{" "}
                   {formatDurationCompact(details.totals.paidMinutes)}
                 </p>
-                {details.totals.holidayCount > 0 ? (
-                  <p className="wagez-week-split">Paid HOLIDAY: {(details.totals.holidayMinutes / 60).toFixed(2)}h · {details.totals.holidayPayCents === null ? "Rate missing" : formatCents(details.totals.holidayPayCents)}</p>
-                ) : null}
+                {(details.totals.categories ?? []).map((category) => (
+                  <p key={category.type} className="wagez-week-split">
+                    {category.type.replace(/-/g, " ").toUpperCase()}: {(category.minutes / 60).toFixed(2)} credited hours · {category.payCents === null ? "Rate missing" : formatCents(category.payCents)}
+                  </p>
+                ))}
                 {details.totals.tipCents > 0 ? (
                   <p className="wagez-week-split">
                     Includes {formatCents(details.totals.tipCents)} tips
@@ -277,8 +281,8 @@ export default function PayPeriodsView({
               </div>
             </div>
 
-            {details.totals.holidayUnknownRates > 0 ? (
-              <p role="status" className="wagez-alert text-sm">{details.totals.holidayUnknownRates} holiday entry(s) have no hourly rate, so estimated pay is incomplete.</p>
+            {details.totals.paidTimeUnknownRates > 0 ? (
+              <p role="status" className="wagez-alert text-sm">{details.totals.paidTimeUnknownRates} paid leave entry(s) have no hourly rate, so estimated pay is incomplete.</p>
             ) : null}
             {details.missingRates > 0 ? (
               <p role="status" className="wagez-alert text-sm">

@@ -18,6 +18,66 @@ Monday Nov 30 0 Hours
 `;
 
 describe("ADP Mobile screenshot OCR parser", () => {
+  it("imports any recorded code, even unfamiliar ones, and ignores only blank days", () => {
+    const result = parseAdpScreenshotText(`
+Monday Nov 9 03.50 Hours
+TRAINING 07:00 am / 03.50 Hours
+Tuesday Nov 10 02.00 Hours
+JURY DUTY 08:00 am / 02.00 Hours
+Wednesday Nov 11 00.00 Hours
+ON CALL 08:00 am / 00.00 Hours
+Thursday Nov 12 08.00 Hours
+VACATION 07:00 am / 08.00 Hours
+Friday Nov 13 0 Hours
+`, 2026);
+    expect(result.shifts).toEqual([]);
+    expect(result.paidTime).toEqual([
+      { type: "training", date: "2026-11-09", minutes: 210 },
+      { type: "jury-duty", date: "2026-11-10", minutes: 120 },
+      { type: "on-call", date: "2026-11-11", minutes: 0 },
+      { type: "vacation", date: "2026-11-12", minutes: 480 },
+    ]);
+  });
+
+  it("reads Nov 9–13 vacation screenshot as three Worked shifts and two paid VACATION entries", () => {
+    const result = parseAdpScreenshotText(`
+Timecard
+Monday Nov 9 07.72 Hours
+Worked 09:30 am - 05:13 pm
+Tuesday Nov 10 07.78 Hours
+Worked 09:58 am - 05:45 pm
+Wednesday Nov 11 06.82 Hours
+Worked 10:09 am - 04:58 pm
+Thursday Nov 12 08.00 Hours
+VACATION 07:00 am / 08.00 Hours
+Friday Nov 13 08.00 Hours
+VACATION 07:00 am / 08.00 Hours
+Saturday Nov 14 0 Hours
+Sunday Nov 15 0 Hours
+`, 2026);
+    expect(result.shifts).toEqual([
+      { date: "2026-11-09", startTime: "09:30", endTime: "17:13" },
+      { date: "2026-11-10", startTime: "09:58", endTime: "17:45" },
+      { date: "2026-11-11", startTime: "10:09", endTime: "16:58" },
+    ]);
+    expect(result.paidTime).toEqual([
+      { type: "vacation", date: "2026-11-12", minutes: 480 },
+      { type: "vacation", date: "2026-11-13", minutes: 480 },
+    ]);
+    expect(result.warnings.filter((warning) => /unsupported|VACATION/i.test(warning))).toEqual([]);
+  });
+
+  it("keeps holiday and vacation in different paid-time categories", () => {
+    const result = parseAdpScreenshotText(
+      "Thursday Nov 12 08.00 Hours\\nVACATION 07:00 am / 08.00 Hours\\nThursday Nov 26 08.00 Hours\\nHOLIDAY 08:00 am / 08.00 Hours", 2026,
+    );
+    expect(result.shifts).toEqual([]);
+    expect(result.paidTime).toEqual([
+      { type: "vacation", date: "2026-11-12", minutes: 480 },
+      { type: "holiday", date: "2026-11-26", minutes: 480 },
+    ]);
+  });
+
   it("recognizes the three worked punches in the supplied screenshot", () => {
     const result = parseAdpScreenshotText(SAMPLE_TEXT, 2026);
     expect(result.shifts).toEqual([
