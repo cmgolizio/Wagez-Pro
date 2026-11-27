@@ -129,20 +129,20 @@ export default function useWagezData() {
     const existingPaidKeys = new Set((current.paidTime ?? []).map(paidTimeKey));
     const submittedKeys = new Set();
     const additions = [];
-    const holidays = [];
+    const paidEntries = [];
     let skipped = 0;
 
     for (const entry of entries) {
-      if (entry.type === "holiday") {
+      if (typeof entry.type === "string") {
         const candidate = createPaidTime({
-          type: "holiday",
+          type: entry.type,
           date: entry.date,
           minutes: entry.minutes,
           hourlyRateCents: rateCents,
           employerId,
         });
         if (!candidate) {
-          return { ok: false, added: 0, message: "Invalid paid holiday hours." };
+          return { ok: false, added: 0, message: "Invalid paid leave hours." };
         }
         const key = paidTimeKey(candidate);
         if (existingPaidKeys.has(key) || submittedKeys.has(key)) {
@@ -150,7 +150,7 @@ export default function useWagezData() {
           continue;
         }
         submittedKeys.add(key);
-        holidays.push(candidate);
+        paidEntries.push(candidate);
         continue;
       }
       const key = shiftTimeKey(entry);
@@ -173,14 +173,14 @@ export default function useWagezData() {
       additions.push(result.shift);
     }
 
-    const imported = [...additions, ...holidays];
+    const imported = [...additions, ...paidEntries];
     if (!imported.length) {
       return { ok: true, added: 0, skipped, message: "All entries already exist or conflict." };
     }
     if (!updateWagezData((data) => ({
       ...data,
       shifts: [...data.shifts, ...additions],
-      paidTime: [...(data.paidTime ?? []), ...holidays],
+      paidTime: [...(data.paidTime ?? []), ...paidEntries],
     }))) {
       return { ok: false, added: 0, message: "The browser could not save the entries." };
     }
@@ -188,7 +188,7 @@ export default function useWagezData() {
     const shiftIds = new Set(persisted.shifts.map((shift) => shift.id));
     const holidayIds = new Set(persisted.paidTime.map((entry) => entry.id));
     if (!additions.every((shift) => shiftIds.has(shift.id)) ||
-        !holidays.every((entry) => holidayIds.has(entry.id))) {
+        !paidEntries.every((entry) => holidayIds.has(entry.id))) {
       return { ok: false, added: 0, message: "Import could not be verified in device storage." };
     }
     const newestDate = imported.reduce(

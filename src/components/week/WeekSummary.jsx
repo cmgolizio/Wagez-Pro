@@ -39,9 +39,12 @@ export default function WeekSummary({ totals, overtime }) {
           </span>
         </p>
       ) : null}
-      {totals.holidayCount > 0 ? (
-        <p className="wagez-week-split">Paid holiday: {formatDuration(totals.holidayMinutes)} · {totals.holidayPayCents === null ? "Rate missing" : formatCents(totals.holidayPayCents)}</p>
-      ) : null}
+      {(totals.categories ?? []).map((category) => (
+        <p key={category.type} className="wagez-week-split">
+          {category.type.replace(/-/g, " ").toUpperCase()}: {formatDuration(category.minutes)} credited ·
+          {" "}{category.payCents === null ? "Rate missing" : formatCents(category.payCents)}
+        </p>
+      ))}
       {totals.tipCents > 0 ? (
         <p className="wagez-week-split">Tips {formatCents(totals.tipCents)}</p>
       ) : null}

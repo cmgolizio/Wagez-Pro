@@ -1,9 +1,8 @@
 /**
  * Parse the ADP Mobile "Timecard" screenshot card layout.
  *
- * This is deliberately conservative. Only dated "Worked" entries with two
- * complete punches become proposed shifts. Holiday/PTO rows, missing punches,
- * invalid dates and weekday mismatches must not silently become hours worked.
+ * This is deliberately conservative. Worked entries with punches become proposed shifts. Any other recorded
+ * category with credited hours is preserved by label; OCR gaps are flagged.
  * OCR text is untrusted and always requires human review before saving.
  */
 import { dayOfWeek, isIsoDate } from "@/lib/dates/isoDate";
@@ -19,7 +18,6 @@ const WEEKDAYS = {
 };
 const HEADER = /\b(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\s*,?\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:\s*,?\s*(20\d{2}))?\b/gi;
 const CLOCK = /(\d{1,2})\s*[:.]\s*(\d{2})\s*([ap])\.?\s*m\.?/gi;
-const NON_WORKED = /\b(?:HOLIDAY|VACATION|PTO|SICK|LEAVE|TIME\s+OFF)\b/i;
 
 function to24(hourText, minuteText, ampm) {
   const hour = Number(hourText);
@@ -61,42 +59,46 @@ export function parseAdpScreenshotText(text, year) {
       continue;
     }
 
-    if (NON_WORKED.test(body) && !/\bWorked\b/i.test(body)) {
-      if (/\bHOLIDAY\b/i.test(body)) {
-        const holidayLine = body.slice(body.search(/\bHOLIDAY\b/i));
-        // Prefer the explicitly labeled holiday hours on that line over the
-        // day total. 08:00 am is a display time, not a punch.
-        const matched = holidayLine.match(/(\d{1,2}(?:[.,]\d{1,2})?)\s*Hours\b/i);
-        const hours = matched ? Number(matched[1].replace(",", ".")) : NaN;
-        const minutes = Math.round(hours * 60);
-        if (Number.isFinite(hours) && minutes > 0 && minutes <= 1440) {
-          paidTime.push({ type: "holiday", date, minutes });
-        } else {
-          warnings.push(`${date}: HOLIDAY entry has no reliable paid hours. Review manually.`);
-        }
-      } else {
-        warnings.push(`${date}: paid non-worked time could not be imported (only HOLIDAY is supported).`);
+    // Every ADP row with an actual entry is eligible, not just a whitelist
+    // of absence codes. Keep its label as a normalized category.
+    // An empty day consists only of "0 Hours" and has no entry.
+    const detail = body.match(/(?:^|\n)\s*([A-Za-z][A-Za-z /_-]{1,38}?)\s+(?:\d{1,2}[:.]\d{2}\s*[ap]m|\d{1,2}[:.]\d{2}\s*Hours)/i);
+    const workedLabel = /\bWorked\b/i.test(body);
+    const headerHours = body.match(/\b(\d{1,2}(?:[.,]\d{1,2})?)\s*Hours\b/i);
+    const credit = headerHours ? Number(headerHours[1].replace(",", ".")) : NaN;
+    const label = detail?.[1]?.trim().replace(/\s+/g, " ") ?? "";
+    const category = (label || "Unclassified Credit").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    if (!workedLabel) {
+      if (!detail && (!Number.isFinite(credit) || credit === 0)) continue;
+      const detailsAfter = detail ? body.slice((detail.index ?? 0) + detail[0].length) : body;
+      const explicitHours = detailsAfter.match(/\b(\d{1,2}(?:[.,]\d{1,2})?)\s*Hours\b/i);
+      const hours = explicitHours ? Number(explicitHours[1].replace(",", ".")) : credit;
+      const minutes = Math.round(hours * 60);
+      if (!category || !Number.isFinite(hours) || minutes < 0 || minutes > 1440) {
+        warnings.push(`${date}: recorded entry could not be fully read; check the screenshot and re-enter manually.`);
+        continue;
       }
-      continue;
-    }
-    // The screenshot shows empty days with 0 Hours; those are not shifts.
-    if (!/\bWorked\b/i.test(body)) {
-      if (/\b\d{1,2}(?:\.\d+)?\s*Hours\b/i.test(body) && !/\b0+(?:\.0+)?\s*Hours\b/i.test(body)) {
-        warnings.push(`${date}: hours shown but no complete Worked punch; skipped.`);
-      }
+      paidTime.push({ type: category, date, minutes });
+      if (!detail) warnings.push(`${date}: credited hours detected but the ADP category was unreadable; labeled Unclassified Credit for review.`);
       continue;
     }
     const worked = body.slice(body.search(/\bWorked\b/i));
     const timeSection = worked.split(/\b(?:HOLIDAY|PTO|VACATION|SICK|LEAVE)\b/i)[0];
     const times = [...timeSection.matchAll(CLOCK)].slice(0, 2);
     if (times.length !== 2 || !/[-]/.test(timeSection.slice(times[0]?.index ?? 0))) {
-      warnings.push(`${date}: incomplete or unreadable Worked punches; skipped.`);
+      if (Number.isFinite(credit) && credit >= 0) {
+        paidTime.push({ type: "worked-credit", date, minutes: Math.round(credit * 60) });
+        warnings.push(`${date}: Worked entry had unreadable punches; credited hours saved for review instead.`);
+      } else warnings.push(`${date}: Worked entry unreadable; review screenshot and add manually.`);
       continue;
     }
     const startTime = to24(times[0][1], times[0][2], times[0][3]);
     const endTime = to24(times[1][1], times[1][2], times[1][3]);
     if (!startTime || !endTime || startTime === endTime) {
-      warnings.push(`${date}: invalid punch time; skipped.`);
+      if (Number.isFinite(credit) && credit >= 0) {
+        paidTime.push({ type: "worked-credit", date, minutes: Math.round(credit * 60) });
+        warnings.push(`${date}: Worked punches invalid; credited hours saved for review instead.`);
+      } else warnings.push(`${date}: invalid punch time; check manually.`);
       continue;
     }
     const shift = { date, startTime, endTime };
@@ -181,7 +183,7 @@ export async function readAdpScreenshots(files, year) {
   }
   if (shifts.length === 0 && paidTime.length === 0) {
     throw new Error(
-      "No complete Worked punches or HOLIDAY hours were found. Check the screenshot year and image quality.",
+      "No recorded entries were recognized. Verify screenshot year and image quality.",
     );
   }
   shifts.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
